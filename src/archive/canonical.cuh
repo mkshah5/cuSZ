@@ -16,12 +16,27 @@
 
 #include <cstdint>
 
-namespace GPU {
+#ifdef __CUDACC__
 
-__device__ int max_bw;
+#define KERNEL __global__
+#define SUBROUTINE __host__ __device__
+#define INLINE __forceinline__
+#define ON_DEVICE_FALLBACK2HOST __device__
 
-template <typename T, typename K>
-__global__ void GetCanonicalCode(uint8_t* singleton, int DICT_SIZE);
+#else
 
-}  // namespace GPU
+#define KERNEL
+#define SUBROUTINE
+#define INLINE inline
+#define ON_DEVICE_FALLBACK2HOST
+
+#endif
+
+#ifdef __CUDACC__
+
+template <typename CODE, typename KEY>
+KERNEL void canonize(uint8_t* singleton, int DICT_SIZE);
+
+#endif
+
 #endif

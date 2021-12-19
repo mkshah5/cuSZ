@@ -11,39 +11,59 @@
  *
  */
 
-#include <cooperative_groups.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#ifdef __CUDACC__
+#include <cooperative_groups.h>
+namespace cg = cooperative_groups;
+#endif
+
 #include "canonical.cuh"
 
-namespace cg = cooperative_groups;
+#ifdef __CUDACC__
+
+#define KERNEL __global__
+#define SUBROUTINE __host__ __device__
+#define INLINE __forceinline__
+#define ON_DEVICE_FALLBACK2HOST __device__
+
+#else
+
+#define KERNEL
+#define SUBROUTINE
+#define INLINE inline
+#define ON_DEVICE_FALLBACK2HOST
+
+#endif
+
+#ifdef __CUDACC__
 
 __device__ int max_bw = 0;
 
-// TODO change H Q order
-template <typename H, typename Q>
-__global__ void GPU::GetCanonicalCode(uint8_t* singleton, int DICT_SIZE)
+template <typename CODE, typename KEY>
+KERNEL void canonize(uint8_t* singleton, int DICT_SIZE)
 {
-    auto type_bw   = sizeof(H) * 8;
-    auto codebooks = reinterpret_cast<H*>(singleton);
-    auto metadata  = reinterpret_cast<int*>(singleton + sizeof(H) * (3 * DICT_SIZE));
-    auto keys      = reinterpret_cast<Q*>(singleton + sizeof(H) * (3 * DICT_SIZE) + sizeof(int) * (4 * type_bw));
-    H*   i_cb      = codebooks;
-    H*   o_cb      = codebooks + DICT_SIZE;
-    H*   canonical = codebooks + DICT_SIZE * 2;
-    auto numl      = metadata;
-    auto iter_by_  = metadata + type_bw;
-    auto first     = metadata + type_bw * 2;
-    auto entry     = metadata + type_bw * 3;
+    auto  type_bw   = sizeof(CODE) * 8;
+    auto  codebooks = reinterpret_cast<CODE*>(singleton);
+    auto  metadata  = reinterpret_cast<int*>(singleton + sizeof(CODE) * (3 * DICT_SIZE));
+    auto  keys      = reinterpret_cast<KEY*>(singleton + sizeof(CODE) * (3 * DICT_SIZE) + sizeof(int) * (4 * type_bw));
+    CODE* i_cb      = codebooks;
+    CODE* o_cb      = codebooks + DICT_SIZE;
+    CODE* canonical = codebooks + DICT_SIZE * 2;
+    auto  numl      = metadata;
+    auto  iter_by_  = metadata + type_bw;
+    auto  first     = metadata + type_bw * 2;
+    auto  entry     = metadata + type_bw * 3;
 
     cg::grid_group g = cg::this_grid();
 
     int gid = blockDim.x * blockIdx.x + threadIdx.x;
     // TODO
     auto c  = i_cb[gid];
-    int  bw = *((uint8_t*)&c + (sizeof(H) - 1));
+    int  bw = *((uint8_t*)&c + (sizeof(CODE) - 1));
 
-    if (c != ~((H)0x0)) {
+    if (c != ~((CODE)0x0)) {
         atomicMax(&max_bw, bw);
         atomicAdd(&numl[bw], 1);
     }
@@ -68,9 +88,9 @@ __global__ void GPU::GetCanonicalCode(uint8_t* singleton, int DICT_SIZE)
     }
     g.sync();
 
-    canonical[gid] = ~((H)0x0);
+    canonical[gid] = ~((CODE)0x0);
     g.sync();
-    o_cb[gid] = ~((H)0x0);
+    o_cb[gid] = ~((CODE)0x0);
     g.sync();
 
     // Reverse Codebook Generation -- TODO isolate
@@ -78,25 +98,31 @@ __global__ void GPU::GetCanonicalCode(uint8_t* singleton, int DICT_SIZE)
         // no atomicRead to handle read-after-write (true dependency)
         for (int i = 0; i < DICT_SIZE; i++) {
             auto    _c  = i_cb[i];
-            uint8_t _bw = *((uint8_t*)&_c + (sizeof(H) - 1));
+            uint8_t _bw = *((uint8_t*)&_c + (sizeof(CODE) - 1));
 
-            if (_c == ~((H)0x0)) continue;
-            canonical[iter_by_[_bw]] = static_cast<H>(first[_bw] + iter_by_[_bw] - entry[_bw]);
+            if (_c == ~((CODE)0x0)) continue;
+            canonical[iter_by_[_bw]] = static_cast<CODE>(first[_bw] + iter_by_[_bw] - entry[_bw]);
             keys[iter_by_[_bw]]      = i;
 
-            *((uint8_t*)&canonical[iter_by_[_bw]] + sizeof(H) - 1) = _bw;
+            *((uint8_t*)&canonical[iter_by_[_bw]] + sizeof(CODE) - 1) = _bw;
             iter_by_[_bw]++;
         }
     }
     g.sync();
 
-    if (canonical[gid] == ~((H)0x0u)) return;
+    if (canonical[gid] == ~((CODE)0x0u)) return;
     o_cb[keys[gid]] = canonical[gid];
 }
 
-template __global__ void GPU::GetCanonicalCode<uint32_t, uint8_t>(uint8_t* singleton, int DICT_SIZE);
-template __global__ void GPU::GetCanonicalCode<uint32_t, uint16_t>(uint8_t* singleton, int DICT_SIZE);
-template __global__ void GPU::GetCanonicalCode<uint32_t, uint32_t>(uint8_t* singleton, int DICT_SIZE);
-template __global__ void GPU::GetCanonicalCode<uint64_t, uint8_t>(uint8_t* singleton, int DICT_SIZE);
-template __global__ void GPU::GetCanonicalCode<uint64_t, uint16_t>(uint8_t* singleton, int DICT_SIZE);
-template __global__ void GPU::GetCanonicalCode<uint64_t, uint32_t>(uint8_t* singleton, int DICT_SIZE);
+#define CANONIZE(CODE, KEY) template KERNEL void canonize<CODE, KEY>(uint8_t * singleton, int DICT_SIZE);
+
+CANONIZE(uint32_t, uint8_t)
+CANONIZE(uint32_t, uint16_t)
+CANONIZE(uint32_t, uint32_t)
+CANONIZE(uint64_t, uint8_t)
+CANONIZE(uint64_t, uint16_t)
+CANONIZE(uint64_t, uint32_t)
+
+#else
+
+#endif
