@@ -18,15 +18,21 @@
 #include <cstdlib>
 #include <cstring>
 
-using namespace std;
-namespace prototype {
-template <typename Input, typename Output>
-__global__ void GPU_Histogram(Input*, Output*, size_t, int);
+#ifdef __CUDACC__
 
-template <typename Input, typename Huff>
-__global__ void EncodeFixedLen(Input*, Huff*, size_t, Huff*);
+#define KERNEL __global__
+#define SUBROUTINE __host__ __device__
+#define INLINE __forceinline__
+#define ON_DEVICE_FALLBACK2HOST __device__
 
-}  // namespace prototype
+#else
+
+#define KERNEL
+#define SUBROUTINE
+#define INLINE inline
+#define ON_DEVICE_FALLBACK2HOST
+
+#endif
 
 struct alignas(8) node_t {
     struct node_t *left, *right;
@@ -38,8 +44,8 @@ struct alignas(8) node_t {
 typedef struct node_t* node_list;
 
 typedef struct alignas(8) HuffmanTree {
-    uint32_t       stateNum;
-    uint32_t       allNodes;
+    uint32_t       state_num;
+    uint32_t       all_nodes;
     struct node_t* pool;
     node_list *    qqq, *qq;  // the root node of the HuffmanTree is qq[1]
     int            n_nodes;   // n_nodes is for compression
@@ -49,26 +55,22 @@ typedef struct alignas(8) HuffmanTree {
     int            n_inode;  // n_inode is for decompression
 } HuffmanTree;
 
-HuffmanTree* createHuffmanTree(int stateNum);
-
-__host__ __device__ node_list new_node(HuffmanTree* huffmanTree, size_t freq, uint32_t c, node_list a, node_list b);
-__host__ __device__ void      qinsert(HuffmanTree* ht, node_list n);
-__host__ __device__ node_list qremove(HuffmanTree* ht);
-__host__ __device__ void      build_code(HuffmanTree* ht, node_list n, int len, uint64_t out1, uint64_t out2);
+SUBROUTINE node_list new_node(HuffmanTree* huffman_tree, size_t freq, uint32_t c, node_list a, node_list b);
+SUBROUTINE void      qinsert(HuffmanTree* ht, node_list n);
+SUBROUTINE node_list qremove(HuffmanTree* ht);
+SUBROUTINE void      build_code(HuffmanTree* ht, node_list n, int len, uint64_t out1, uint64_t out2);
 
 // auxiliary functions done
-__host__ HuffmanTree* createHuffmanTreeCPU(int stateNum);
+SUBROUTINE HuffmanTree* create_huffman_tree(int state_num);
 
-__device__ HuffmanTree* createHuffmanTreeGPU(int stateNum);
-
-__host__ __device__ node_list new_node(HuffmanTree* huffmanTree, size_t freq, uint32_t c, node_list a, node_list b);
+SUBROUTINE node_list new_node(HuffmanTree* huffman_tree, size_t freq, uint32_t c, node_list a, node_list b);
 
 /* priority queue */
-__host__ __device__ void qinsert(HuffmanTree* ht, node_list n);
+SUBROUTINE void qinsert(HuffmanTree* ht, node_list n);
 
-__host__ __device__ node_list qremove(HuffmanTree* ht);
+SUBROUTINE node_list qremove(HuffmanTree* ht);
 
-__host__ __device__ void build_code(HuffmanTree* ht, node_list n, int len, uint64_t out1, uint64_t out2);
+SUBROUTINE void build_code(HuffmanTree* ht, node_list n, int len, uint64_t out1, uint64_t out2);
 
 ////////////////////////////////////////////////////////////////////////////////
 // internal functions
@@ -84,27 +86,27 @@ typedef struct alignas(8) Stack {
     uint64_t  depth = 0;
 } internal_stack_t;
 
-__device__ __forceinline__ bool isEmpty(internal_stack_t* s);
+SUBROUTINE INLINE bool is_empty_tree(internal_stack_t* s);
 
-__device__ __forceinline__ node_list top(internal_stack_t* s);
+SUBROUTINE INLINE node_list top(internal_stack_t* s);
 
 template <typename T>
-__device__ __forceinline__ void push_v2(internal_stack_t* s, node_list n, T path, T len);
+SUBROUTINE INLINE void push_v2(internal_stack_t* s, node_list n, T path, T len);
 
 // TODO check with typing
 template <typename T>
-__device__ __forceinline__ node_list pop_v2(internal_stack_t* s, T* path_to_restore, T* length_to_restore);
+SUBROUTINE INLINE node_list pop_v2(internal_stack_t* s, T* path_to_restore, T* length_to_restore);
 
 template <typename Q>
-__device__ void InOrderTraverse_v2(HuffmanTree* ht, Q* codebook);
+SUBROUTINE void inorder_traverse_v2(HuffmanTree* ht, Q* codebook);
 
 ////////////////////////////////////////////////////////////////////////////////
 // global functions
 ////////////////////////////////////////////////////////////////////////////////
 
-__device__ HuffmanTree* global_gpuTree;
+ON_DEVICE_FALLBACK2HOST HuffmanTree* global_tree;
 
 template <typename H>
-__global__ void InitHuffTreeAndGetCodebook(int stateNum, unsigned int* freq, H* codebook);
+KERNEL void init_huffman_tree_and_get_codebook(int state_num, unsigned int* freq, H* codebook);
 
 #endif
