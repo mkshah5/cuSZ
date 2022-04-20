@@ -17,6 +17,7 @@
 
 #include "base_compressor.cuh"
 #include "binding.hh"
+#include "component/glue.cuh"
 #include "componments.hh"
 #include "header.hh"
 
@@ -78,6 +79,9 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
     Codec*         codec;
     FallbackCodec* fb_codec;
 
+    // autosw experimental
+    spGS2<E>* spgs;
+
     cusz::FREQ* d_freq;
     float       time_hist;
 
@@ -95,6 +99,9 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         spcodec   = new SpCodec;
         codec     = new Codec;
         fb_codec  = new FallbackCodec;
+
+        // autosw experimental
+        spgs = new spGS2<E>;
     }
 
     void destroy()
@@ -460,7 +467,7 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         auto d_outlier_xdata = out_decompressed;
 
         auto spcodec_do            = [&]() { (*spcodec).decode(d_sp, d_outlier, stream); };
-        auto encode_with_exception = [&]() {
+        auto decode_with_exception = [&]() {
             if (not use_fallback_codec) {  //
                 (*codec).decode(d_vle, d_errctrl);
             }
@@ -477,7 +484,7 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         };
 
         // process
-        spcodec_do(), encode_with_exception(), predictor_do();
+        spcodec_do(), decode_with_exception(), predictor_do();
 
         collect_decompress_timerecord();
 
@@ -489,7 +496,7 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
 template <typename InputData = float>
 struct Framework {
     using DATA    = InputData;                          // depend on template input
-    using ERRCTRL = ErrCtrlTrait<2>::type;              // predefined
+    using ERRCTRL = ErrCtrlTrait<4, true>::type;        // predefined
     using FP      = FastLowPrecisionTrait<true>::type;  // predefined
 
     /* Predictor */
