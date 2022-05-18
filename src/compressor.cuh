@@ -208,7 +208,7 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
 
         compress_detail(
             uncompressed, eb, radius, pardeg, codecs_in_use, nz_density_factor, compressed, compressed_len,
-            (*config).codec_force_fallback(), stream, dbg_print);
+            (*config).codec_force_fallback(), (*config).fname.fname + ".errctrl", stream, dbg_print);
     }
 
     void compress_detail(
@@ -221,6 +221,7 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         BYTE*&         compressed,
         size_t&        compressed_len,
         bool           codec_force_fallback,
+        string         fname,
         cudaStream_t   stream    = nullptr,
         bool           dbg_print = false)
     {
@@ -239,6 +240,11 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         // must precede the following derived lengths
         auto predictor_do = [&]() {
             (*predictor).construct(data_len3, uncompressed, d_anchor, d_errctrl, eb, radius, stream);
+
+            cudaStreamSynchronize(stream);
+            Capsule<E> to_export((*predictor).get_len_quant());
+            to_export.dptr = d_errctrl;
+            to_export.template alloc<cusz::LOC::HOST>().device2host().template to_file<cusz::LOC::HOST>(fname);
         };
 
         auto spcodec_do = [&]() { (*spcodec).encode(uncompressed, m * m, d_spfmt, spfmt_out_len, stream, dbg_print); };
