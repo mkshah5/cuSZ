@@ -46,6 +46,22 @@ using STRIDE = unsigned int;
 
 namespace cusz {
 
+template <
+    typename Data>
+__global__ void cusz::apply_threshold(
+    Data*         data,
+    float         threshold,
+    int           dimx)
+{
+    for (int tid = TIX +BDX*BIX; tid < dimx; tid+=BDX*BIX)
+    {
+        if(fabs(data[tid]) <=threshold){
+            data[tid] = 0;
+        }
+    }
+    
+}
+
 /**
  * @brief compress-time 1D Lorenzo pred-quant kernel
  *
@@ -463,6 +479,8 @@ __forceinline__ __device__ void postquant_write2d(
 }
 
 }  // namespace
+
+
 
 template <
     typename Data,

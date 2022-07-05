@@ -116,10 +116,15 @@ class PredictorLorenzo : public PredictorAbstraction<T, E> {
         timer.timer_start(stream);
 
         if (ndim == 1) {
+            ::cusz::apply_threshold<T>
+                <<<80,256,0,stream>>>
+                (in_data, 0.000001, size.x);
+
             constexpr auto SEQ          = 4;
             constexpr auto DATA_SUBSIZE = 256;
             auto           dim_block    = DATA_SUBSIZE / SEQ;
             auto           dim_grid     = ConfigHelper::get_npart(size.x, DATA_SUBSIZE);
+            
             ::cusz::c_lorenzo_1d1l<T, E, FP, DATA_SUBSIZE, SEQ, DELAY_POSTQUANT>  //
                 <<<dim_grid, dim_block, 0, stream>>>                              //
                 (in_data, out_errctrl, out_outlier, size.x, radius, ebx2_r);
