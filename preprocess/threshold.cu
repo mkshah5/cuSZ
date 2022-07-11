@@ -21,6 +21,13 @@ typedef union ldouble
     unsigned char byte[8];
 } ldouble;
 
+typedef union lfloat
+{
+    float value;
+    unsigned int ivalue;
+    unsigned char byte[4];
+} lfloat;
+
 
 /**
  * @brief Globals
@@ -65,11 +72,6 @@ __global__ void apply_threshold(double *data, float threshold, unsigned long dat
     }
 }
 
-// __global__ void retrieve_threshold(double *data, double *outData, unsigned long dataLength, char *bitmap, int *bitmap_sum){
-    
-
-// }
-
 /**
  * @brief Helper functions for host
  * 
@@ -85,6 +87,8 @@ void checkEndian(){
     
 }
 
+
+
 void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath)
 {
 	FILE *pFile = fopen(tgtFilePath, "wb");
@@ -96,6 +100,27 @@ void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath)
 
     fwrite(bytes, 1, byteLength, pFile); //write outSize bytes
     fclose(pFile);
+
+}
+
+void writeFloatData_inBytes(float *data, size_t nbEle, char* tgtFilePath)
+{
+	size_t i = 0;
+
+	lfloat buf;
+	unsigned char* bytes = (unsigned char*)malloc(nbEle*sizeof(float));
+	for(i=0;i<nbEle;i++)
+	{
+		buf.value = data[i];
+		bytes[i*4+0] = buf.byte[0];
+		bytes[i*4+1] = buf.byte[1];
+		bytes[i*4+2] = buf.byte[2];
+		bytes[i*4+3] = buf.byte[3];
+	}
+
+	size_t byteLength = nbEle*sizeof(float);
+	writeByteData(bytes, byteLength, tgtFilePath);
+	free(bytes);
 
 }
 
@@ -241,6 +266,7 @@ int main(int argc, char* argv[]){
 
     int preCompression = 0;
     int doGroup = 0;
+    int castToFloat = 0;
 
     float threshold = 0.0;
     unsigned long numSigValues = 0;
@@ -275,6 +301,9 @@ int main(int argc, char* argv[]){
         case 'L':
             i++;
             dataLength = atoi(argv[i]);
+            break;
+        case 'F':
+            castToFloat = 1;
             break;
         default:
             break;
@@ -377,12 +406,25 @@ int main(int argc, char* argv[]){
 
         sprintf(outputFilePath, "%s.threshold", inPath);	
 
-        writeDoubleData_inBytes(data, dataToCopy, outputFilePath);
+        if (castToFloat)
+        {
+            float *floatTmpData = (float *)malloc(dataToCopy*sizeof(float));
+            for (size_t i = 0; i < dataToCopy; i++)
+            {
+                floatTmpData[i] = (float) data[i];
+            }
+            writeFloatData_inBytes(floatTmpData, dataToCopy, outputFilePath);
+            free(floatTmpData);
+
+        }else{
+            writeDoubleData_inBytes(data, dataToCopy, outputFilePath);
+           
+        }
         
-        
+        free(data);
         printf("Number of significant values: %d\n", c);
         cudaFree(d_data);
-        free(data);
+        
     }
     
 
