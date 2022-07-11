@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
-#include <bit>
+//#include <bit>
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -36,8 +36,9 @@ __device__ int d_sigValues = 0;
 
 __global__ void weak_threshold(double *data, float threshold, unsigned long dataLength){
     
-    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < dataLength; tid+=blockDim.x*blockIdx.x)
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < dataLength; tid+=blockDim.x*gridDim.x)
     {
+
         if (fabs(data[tid]) <= threshold)
         {
             data[tid] = 0.0;
@@ -187,6 +188,8 @@ int main(int argc, char* argv[]){
     unsigned long dataLength = 0;
 
     size_t nbEle;
+
+    checkEndian();
 
     for(int i=0;i<argc;i++){
         switch (argv[i][1])
