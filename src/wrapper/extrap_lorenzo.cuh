@@ -121,6 +121,16 @@ class PredictorLorenzo : public PredictorAbstraction<T, E> {
             constexpr auto DATA_SUBSIZE = 256;
             auto           dim_block    = DATA_SUBSIZE / SEQ;
             auto           dim_grid     = ConfigHelper::get_npart(size.x, DATA_SUBSIZE);
+
+            // IMPLEMENTING THRESHOLD+GROUP OPTIMIZATION
+            // // STEP 1: Allocate space for bitmap
+            // // STEP 2: Launch kernel that applies threshold and sets bitmap values, returns number of significant values
+            // // STEP 3: Alloc space for significant values and launch kernel to scan bitmap and transfer sig values
+            // // STEP 4: Free old data and feed significant values to compress
+
+            // uint32_t *bitmap;
+            // cudaMalloc(&bitmap, sizeof(uint32_t)*((size.x/32)+1));
+            // 
             
             ::cusz::c_lorenzo_1d1l<T, E, FP, DATA_SUBSIZE, SEQ, DELAY_POSTQUANT>  //
                 <<<dim_grid, dim_block, 0, stream>>>                              //
