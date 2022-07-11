@@ -336,7 +336,7 @@ int main(int argc, char* argv[]){
             cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
 
         }else{
-            apply_threshold(d_data, threshold, dataLength, d_bitmap);
+            apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
             cudaDeviceSynchronize();
 
             cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
