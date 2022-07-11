@@ -65,6 +65,45 @@ void checkEndian(){
     
 }
 
+void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath)
+{
+	FILE *pFile = fopen(tgtFilePath, "wb");
+    if (pFile == NULL)
+    {
+        printf("Failed to open input file. 3\n");
+        return;
+    }
+
+    fwrite(bytes, 1, byteLength, pFile); //write outSize bytes
+    fclose(pFile);
+
+}
+
+void writeDoubleData_inBytes(double *data, size_t nbEle, char* tgtFilePath)
+{
+	size_t i = 0, index = 0;
+
+	ldouble buf;
+	unsigned char* bytes = (unsigned char*)malloc(nbEle*sizeof(double));
+	for(i=0;i<nbEle;i++)
+	{
+		index = i*8;
+		buf.value = data[i];
+		bytes[index+0] = buf.byte[0];
+		bytes[index+1] = buf.byte[1];
+		bytes[index+2] = buf.byte[2];
+		bytes[index+3] = buf.byte[3];
+		bytes[index+4] = buf.byte[4];
+		bytes[index+5] = buf.byte[5];
+		bytes[index+6] = buf.byte[6];
+		bytes[index+7] = buf.byte[7];
+	}
+
+	size_t byteLength = nbEle*sizeof(double);
+	writeByteData(bytes, byteLength, tgtFilePath);
+	free(bytes);
+}
+
 void symTransform_8bytes(unsigned char data[8])
 {
 	unsigned char tmp = data[0];
@@ -232,6 +271,8 @@ int main(int argc, char* argv[]){
 
     if (preCompression)
     {
+        int dataToCopy = dataLength;
+
         double *data = readDoubleData(inPath, &nbEle);
         double *d_data;
         cudaMalloc(&d_data, sizeof(double)*dataLength);
@@ -245,6 +286,7 @@ int main(int argc, char* argv[]){
         {
             weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
             cudaDeviceSynchronize();
+            dataToCopy = dataLength;
         }
         
         #ifdef TIMING
@@ -254,10 +296,16 @@ int main(int argc, char* argv[]){
         printf("Time to execute: %.3f ms\n", time);
         #endif
 
+        cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+
+        sprintf(outputFilePath, "%s.threshold", inPath);	
+
+        writeDoubleData_inBytes(data, sizeof(double)*dataToCopy, outputFilePath);
         int c;
         cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(int));
         printf("Number of significant values: %d\n", c);
         cudaFree(d_data);
+        free(data);
     }
     
 
