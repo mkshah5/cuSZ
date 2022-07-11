@@ -50,6 +50,26 @@ __global__ void weak_threshold(double *data, float threshold, unsigned long data
     
 }
 
+__global__ void apply_threshold(double *data, float threshold, unsigned long dataLength, char *bitmap){
+    
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < dataLength; tid+=blockDim.x*gridDim.x)
+    {
+        if (fabs(data[tid]) <= threshold)
+        {
+            data[tid] = 0.0;
+            bitmap[tid] = '0';
+        } else{
+            atomicAdd(&d_sigValues, 1);
+            bitmap[tid] = '1';
+        }   
+    }
+}
+
+// __global__ void retrieve_threshold(double *data, double *outData, unsigned long dataLength, char *bitmap, int *bitmap_sum){
+    
+
+// }
+
 /**
  * @brief Helper functions for host
  * 
@@ -272,37 +292,94 @@ int main(int argc, char* argv[]){
     if (preCompression)
     {
         int dataToCopy = dataLength;
+        char *h_bitmap, *d_bitmap;
+
+        uint32_t *bitmap_final;
 
         double *data = readDoubleData(inPath, &nbEle);
         double *d_data;
         cudaMalloc(&d_data, sizeof(double)*dataLength);
         cudaMemcpy(d_data, data, sizeof(double)*dataLength, cudaMemcpyHostToDevice);
 
+        if (doGroup)
+        {
+            h_bitmap = (char*)malloc(sizeof(char)*dataLength);
+            cudaMalloc(&d_bitmap, sizeof(char)*dataLength);
+            bitmap_final = (uint32_t*)malloc(sizeof(uint32_t)*((dataLength/32)+1));
+        }
+        
+        int c = 0;
+
         #ifdef TIMING
         cudaEventRecord(start, 0);
         #endif
+
+        // IMPLEMENTING THRESHOLD+GROUP OPTIMIZATION
+        // // STEP 1: Allocate space for bitmap
+        // // STEP 2: Launch kernel that applies threshold and sets bitmap values, returns number of significant values
+        // // STEP 3: Alloc space for significant values and launch kernel to scan bitmap and transfer sig values
+        // // STEP 4: Free old data and feed significant values to compress
 
         if (!doGroup)
         {
             weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
             cudaDeviceSynchronize();
             dataToCopy = dataLength;
+
+            #ifdef TIMING
+            cudaEventRecord(stop, 0);
+            cudaEventSynchronize(stop);
+            cudaEventElapsedTime(&time, start, stop);
+            printf("Time to execute: %.3f ms\n", time);
+            #endif
+
+            cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+
+        }else{
+            apply_threshold(d_data, threshold, dataLength, d_bitmap);
+            cudaDeviceSynchronize();
+
+            cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
+            cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(int));
+
+            cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+
+            double *tmpData = (double *)malloc(c*sizeof(double));
+            int sig_ind = 0;
+            for (size_t i = 0; i < dataLength; i++)
+            {
+                if (h_bitmap[i]=='1')
+                {
+                    tmpData[sig_ind] = data[i];
+                    bitmap_final[i/32] = bitmap_final[i/32] | (1 << (i%32));
+
+                    sig_ind++;
+                }
+                
+            }
+
+            #ifdef TIMING
+            cudaEventRecord(stop, 0);
+            cudaEventSynchronize(stop);
+            cudaEventElapsedTime(&time, start, stop);
+            printf("Time to execute: %.3f ms\n", time);
+            #endif
+
+
+            free(data);
+            data = tmpData;
+            dataToCopy = c;
         }
         
-        #ifdef TIMING
-        cudaEventRecord(stop, 0);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&time, start, stop);
-        printf("Time to execute: %.3f ms\n", time);
-        #endif
+        
 
-        cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+        
 
         sprintf(outputFilePath, "%s.threshold", inPath);	
 
-        writeDoubleData_inBytes(data, sizeof(double)*dataToCopy, outputFilePath);
-        int c;
-        cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(int));
+        writeDoubleData_inBytes(data, dataToCopy, outputFilePath);
+        
+        
         printf("Number of significant values: %d\n", c);
         cudaFree(d_data);
         free(data);
