@@ -243,7 +243,9 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
             int* quant_codes = (int*) malloc(sizeof(int)*quant_len);
             cudaMemcpy(quant_codes, d_errctrl, sizeof(int)*quant_len,cudaMemcpyDeviceToHost);
 
-            printf("survived\n");
+            FILE *q_file = fopen("quants.data","wb");
+            fwrite(quant_codes, sizeof(int), quant_len, q_file);
+            fclose(q_file);
             free(quant_codes);
         };
 
