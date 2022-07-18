@@ -72,6 +72,23 @@ __global__ void apply_threshold(double *data, float threshold, unsigned long dat
     }
 }
 
+__global__ void grouping(double *data, char* bitmap, int pointsPerScan, unsigned long dataLength){
+
+    __shared__ double loaded_data[4096];
+    int starting_index = 4096*blockIdx.x;
+
+    for (size_t i = threadIdx.x+starting_index; i < starting_index+4096; i+=blockDim.x)
+    {
+        if (i >= dataLength)
+        {
+            break;
+        }
+        
+        loaded_data[]
+    }
+    
+}
+
 /**
  * @brief Helper functions for host
  * 
