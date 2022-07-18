@@ -239,6 +239,12 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         // must precede the following derived lengths
         auto predictor_do = [&]() {
             (*predictor).construct(data_len3, uncompressed, d_anchor, d_errctrl, eb, radius, stream);
+            size_t quant_len = (*predictor).get_len_quant();
+            int* quant_codes = (int*) malloc(sizeof(int)*quant_len);
+            cudaMemcpy(quant_codes, d_errctrl, sizeof(int)*quant_len,cudaMemcpyDeviceToHost);
+
+            printf("survived\n");
+            free(quant_codes);
         };
 
         auto spcodec_do = [&]() { (*spcodec).encode(uncompressed, m * m, d_spfmt, spfmt_out_len, stream, dbg_print); };
