@@ -184,16 +184,18 @@ void kernel_wrapper::get_frequency(
 
     uint32_t* h_freq;
     h_freq = (uint32_t*)malloc(sizeof(uint32_t)*num_buckets);
-    cudaMemcpy(h_freq, out_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyDeviceToHost);
+    
 
     // for (int i = 0; i < num_buckets; i++)
     // {
     //     printf("%d\n",h_freq[i]);
     // }
 
-    FILE *q_file = fopen("hist.data","wb");
-    fwrite(h_freq, sizeof(uint32_t), num_buckets, q_file);
+    FILE *q_file = fopen("hist-chem-1e3.data","rb");
+    fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
     fclose(q_file);
+
+    cudaMemcpy(out_freq, h_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyHostToDevice);
     free(h_freq);
     
 }
