@@ -181,6 +181,17 @@ void kernel_wrapper::get_frequency(
     cudaStreamSynchronize(stream);
 
     milliseconds = t.get_time_elapsed();
+
+    uint32_t* h_freq;
+    h_freq = (uint32_t*)malloc(sizeof(uint32_t)*num_buckets);
+    cudaMemcpy(h_freq, out_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < num_buckets; i++)
+    {
+        printf("%d\n",h_freq[i]);
+    }
+    free(h_freq);
+    
 }
 
 #endif
