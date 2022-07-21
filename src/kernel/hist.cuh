@@ -184,14 +184,44 @@ void kernel_wrapper::get_frequency(
 
     uint32_t* h_freq;
     h_freq = (uint32_t*)malloc(sizeof(uint32_t)*num_buckets);
+    cudaMemcpy(h_freq, out_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyDeviceToHost);
+
+    int total = 0;
+    for (size_t i = 0; i < num_buckets; i++)
+    {
+        total+=h_freq[i];
+    }
     
 
-    // for (int i = 0; i < num_buckets; i++)
-    // {
-    //     printf("%d\n",h_freq[i]);
-    // }
+    float entropy = 0.0;
 
-    FILE *q_file = fopen("hist-chem-1e3.data","rb");
+    for (size_t i = 0; i < num_buckets; i++)
+    {
+        double p = h_freq[i]/(double)total;
+        entropy+= p*log2(p);
+    }
+    entropy = entropy*-1;
+
+    float entropies[10] = {1.016,1.192,1.336,1.459,1.568,2.084,2.668,3.083,4.083,5.083};
+    
+    float min_diff = 100000;
+    int min_idx = 0;
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (abs(entropy - entropies[i]) < min_diff)
+        {
+            min_diff = abs(entropy - entropies[i]);
+            min_idx = i;
+        }
+    }
+
+    printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropies[min_idx]);
+
+    char entropy_file[100];
+    sprintf(entropy_file, "gaussian_hists/hist_entropy_%0.3f.data", entropies[min_idx]);
+
+    FILE *q_file = fopen(entropy_file,"rb");
     fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
     fclose(q_file);
 
