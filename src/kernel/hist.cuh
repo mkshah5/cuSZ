@@ -236,17 +236,17 @@ void kernel_wrapper::get_frequency(
     //     2.084
     // };
     
-    float min_diff = 100000;
-    int min_idx = 0;
+    // float min_diff = 100000;
+    // int min_idx = 0;
 
-    for (int i = 0; i < 10; i++)
-    {
-        if (abs(entropy - entropies[i]) < min_diff)
-        {
-            min_diff = abs(entropy - entropies[i]);
-            min_idx = i;
-        }
-    }
+    // for (int i = 0; i < 10; i++)
+    // {
+    //     if (abs(entropy - entropies[i]) < min_diff)
+    //     {
+    //         min_diff = abs(entropy - entropies[i]);
+    //         min_idx = i;
+    //     }
+    // }
 
     printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropy_use);
 
