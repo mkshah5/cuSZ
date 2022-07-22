@@ -224,55 +224,56 @@ class Compressor : public BaseCompressor<typename BINDING::PREDICTOR> {
         cudaStream_t   stream    = nullptr,
         bool           dbg_print = false)
     {
-        header.codecs_in_use     = codecs_in_use;
-        header.nz_density_factor = nz_density_factor;
-
-        T*     d_anchor{nullptr};   // predictor out1
-        E*     d_errctrl{nullptr};  // predictor out2
-        BYTE*  d_spfmt{nullptr};
-        size_t spfmt_out_len{0};
-
-        BYTE*  d_codec_out{nullptr};
-        size_t codec_out_len{0};
-
-        size_t data_len, m, errctrl_len, sublen;
-
-        float entropies[1] = {1.142};
-        // float entropies[30] = {1.016,
-        //     1.082,
-        //     1.142,
-        //     1.198,
-        //     1.25,
-        //     1.299,
-        //     1.345,
-        //     1.389,
-        //     1.430,
-        //     1.470,
-        //     1.509,
-        //     1.546,
-        //     1.582,
-        //     1.617,
-        //     1.652,
-        //     1.685,
-        //     1.717,
-        //     1.749,
-        //     1.78,
-        //     1.811,
-        //     1.84,
-        //     1.869,
-        //     1.898,
-        //     1.926,
-        //     1.954,
-        //     1.981,
-        //     2.007,
-        //     2.033,
-        //     2.059,
-        //     2.084
-        // };
-        // must precede the following derived lengths
-
         for (size_t i = 0; i < 1; i++)
         {
+            header.codecs_in_use     = codecs_in_use;
+            header.nz_density_factor = nz_density_factor;
+
+            T*     d_anchor{nullptr};   // predictor out1
+            E*     d_errctrl{nullptr};  // predictor out2
+            BYTE*  d_spfmt{nullptr};
+            size_t spfmt_out_len{0};
+
+            BYTE*  d_codec_out{nullptr};
+            size_t codec_out_len{0};
+
+            size_t data_len, m, errctrl_len, sublen;
+
+            // float entropies[1] = {1.142};
+            float entropies[30] = {1.016,
+                1.082,
+                1.142,
+                1.198,
+                1.25,
+                1.299,
+                1.345,
+                1.389,
+                1.430,
+                1.470,
+                1.509,
+                1.546,
+                1.582,
+                1.617,
+                1.652,
+                1.685,
+                1.717,
+                1.749,
+                1.78,
+                1.811,
+                1.84,
+                1.869,
+                1.898,
+                1.926,
+                1.954,
+                1.981,
+                2.007,
+                2.033,
+                2.059,
+                2.084
+            };
+        // must precede the following derived lengths
+
+        
             float entropy = entropies[i];
         
         
