@@ -312,10 +312,11 @@ class HuffmanCoarse : public cusz::VariableRate {
         size_t const in_uncompressed_len,
         int const    cfg_booklen,
         BYTE*        out_revbook,
-        cudaStream_t stream = nullptr)
+        cudaStream_t stream = nullptr,
+        float        entropy_use = 1.016)
     {
         kernel_wrapper::get_frequency<T>(
-            in_uncompressed, in_uncompressed_len, tmp_freq, cfg_booklen, time_hist, stream);
+            in_uncompressed, in_uncompressed_len, tmp_freq, cfg_booklen, time_hist, stream, entropy_use);
 
         // This is end-to-end time for parbook.
         cuda_timer_t t;
@@ -420,7 +421,8 @@ class HuffmanCoarse : public cusz::VariableRate {
         BYTE*&       out_compressed,
         size_t&      out_compressed_len,
         cudaStream_t stream     = nullptr,
-        bool         do_inspect = true)
+        bool         do_inspect = true,
+        float        entropy_use = 1.016)
     {
         cuda_timer_t t;
         time_lossless = 0;
@@ -502,7 +504,7 @@ class HuffmanCoarse : public cusz::VariableRate {
 
         // -----------------------------------------------------------------------------
 
-        if (do_inspect) inspect(d_freq, d_book, in_uncompressed, in_uncompressed_len, cfg_booklen, d_revbook, stream);
+        if (do_inspect) inspect(d_freq, d_book, in_uncompressed, in_uncompressed_len, cfg_booklen, d_revbook, stream, entropy_use);
 
         encode_phase1();
         encode_phase2();
