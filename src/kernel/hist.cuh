@@ -65,7 +65,8 @@ void get_frequency(
     cusz::FREQ*  out_freq,
     int          nbin,
     float&       milliseconds,
-    cudaStream_t stream = nullptr);
+    cudaStream_t stream = nullptr,
+    float entropy_use = 1.016);
 
 }  // namespace kernel_wrapper
 
@@ -128,7 +129,8 @@ void kernel_wrapper::get_frequency(
     cusz::FREQ*  out_freq,
     int          num_buckets,
     float&       milliseconds,
-    cudaStream_t stream)
+    cudaStream_t stream,
+    float entropy_use)
 {
     // static_assert(
     //     std::numeric_limits<T>::is_integer and (not std::numeric_limits<T>::is_signed),
@@ -197,29 +199,66 @@ void kernel_wrapper::get_frequency(
 
     for (size_t i = 0; i < num_buckets; i++)
     {
-        double p = h_freq[i]/(double)total;
+        double p = (double)h_freq[i]/(double)total;
+
+        if (p == 0)
+        {
+            continue;
+        }
+        
+
         entropy+= p*log2(p);
     }
     entropy = entropy*-1;
 
-    float entropies[10] = {1.016,1.192,1.336,1.459,1.568,2.084,2.668,3.083,4.083,5.083};
+    // float entropies[30] = {1.016,
+    //     1.082,
+    //     1.142,
+    //     1.198,
+    //     1.25,
+    //     1.299,
+    //     1.345,
+    //     1.389,
+    //     1.43,
+    //     1.47,
+    //     1.509,
+    //     1.546,
+    //     1.582,
+    //     1.617,
+    //     1.652,
+    //     1.685,
+    //     1.717,
+    //     1.749,
+    //     1.78,
+    //     1.811,
+    //     1.84,
+    //     1.869,
+    //     1.898,
+    //     1.926,
+    //     1.954,
+    //     1.981,
+    //     2.007,
+    //     2.033,
+    //     2.059,
+    //     2.084
+    // };
     
-    float min_diff = 100000;
-    int min_idx = 0;
+    // float min_diff = 100000;
+    // int min_idx = 0;
 
-    for (int i = 0; i < 10; i++)
-    {
-        if (abs(entropy - entropies[i]) < min_diff)
-        {
-            min_diff = abs(entropy - entropies[i]);
-            min_idx = i;
-        }
-    }
+    // for (int i = 0; i < 10; i++)
+    // {
+    //     if (abs(entropy - entropies[i]) < min_diff)
+    //     {
+    //         min_diff = abs(entropy - entropies[i]);
+    //         min_idx = i;
+    //     }
+    // }
 
-    printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropies[min_idx]);
+    printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropy_use);
 
     char entropy_file[100];
-    sprintf(entropy_file, "gaussian_hists/hist_entropy_%0.3f.data", entropies[min_idx]);
+    sprintf(entropy_file, "gaussian_hists/hist_entropy_%0.3f.data", entropy_use);
 
     FILE *q_file = fopen(entropy_file,"rb");
     fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
