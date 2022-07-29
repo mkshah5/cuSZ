@@ -396,6 +396,14 @@ int main(int argc, char* argv[]){
             cudaMalloc(&d_finaldata, sizeof(double)*c);
 
             thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+
+            #ifdef TIMING
+            cudaEventRecord(stop, 0);
+            cudaEventSynchronize(stop);
+            cudaEventElapsedTime(&time, start, stop);
+            printf("Time to execute: %.3f ms\n", time);
+            #endif
+
             double *tmpData = (double *)malloc(c*sizeof(double));
 
             cudaMemcpy(tmpData, d_finaldata, sizeof(double)*c,cudaMemcpyDeviceToHost);
@@ -444,12 +452,12 @@ int main(int argc, char* argv[]){
             }
             
 
-            #ifdef TIMING
-            cudaEventRecord(stop, 0);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&time, start, stop);
-            printf("Time to execute: %.3f ms\n", time);
-            #endif
+            // #ifdef TIMING
+            // cudaEventRecord(stop, 0);
+            // cudaEventSynchronize(stop);
+            // cudaEventElapsedTime(&time, start, stop);
+            // printf("Time to execute: %.3f ms\n", time);
+            // #endif
 
 
             free(data);
