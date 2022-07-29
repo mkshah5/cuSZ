@@ -392,6 +392,9 @@ int main(int argc, char* argv[]){
 
             cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
             double *d_finaldata;
+
+            cudaMalloc(&d_finaldata, sizeof(double)*c);
+
             thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
             double *tmpData = (double *)malloc(c*sizeof(double));
 
