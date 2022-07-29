@@ -15,6 +15,7 @@
 
 #define TIMING
 
+using namespace nvcomp;
 
 /**
  * @brief TYPEDEFs required
@@ -425,7 +426,7 @@ int main(int argc, char* argv[]){
 
                 const int chunk_size = 1 << 16;
                 
-                using namespace nvcomp;
+                
                 nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
                 LZ4Manager nvcomp_manager{chunk_size, data_type, stream};
