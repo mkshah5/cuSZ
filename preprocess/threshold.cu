@@ -10,6 +10,9 @@
 #include "nvcomp.hpp"
 #include "nvcomp/nvcompManagerFactory.hpp"
 
+#include <thrust/copy.h>
+#include <thrust/execution_policy.h>
+
 #define TIMING
 
 
@@ -75,22 +78,13 @@ __global__ void apply_threshold(double *data, float threshold, unsigned long dat
     }
 }
 
-// __global__ void grouping(double *data, char* bitmap, int pointsPerScan, unsigned long dataLength){
-
-//     __shared__ double loaded_data[4096];
-//     int starting_index = 4096*blockIdx.x;
-
-//     for (size_t i = threadIdx.x+starting_index; i < starting_index+4096; i+=blockDim.x)
-//     {
-//         if (i >= dataLength)
-//         {
-//             break;
-//         }
-        
-//         loaded_data[]
-//     }
-    
-// }
+struct is_nonzero
+{
+    __host__ __device__
+    bool operator()(const double x){
+        return x != 0.0;
+    }
+};
 
 /**
  * @brief Helper functions for host
@@ -396,14 +390,20 @@ int main(int argc, char* argv[]){
             cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(int));
 
             cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
-
+            double *d_finaldata;
+            thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
             double *tmpData = (double *)malloc(c*sizeof(double));
+
+            cudaMemcpy(tmpData, d_finaldata, sizeof(double)*cudaMemcpyDeviceToHost);
+
+            printf("tmpData from thrust: %f\n", tmpData[0]);
+
             int sig_ind = 0;
             for (size_t i = 0; i < dataLength; i++)
             {
                 if (h_bitmap[i]=='1')
                 {
-                    tmpData[sig_ind] = data[i];
+                    // tmpData[sig_ind] = data[i];
                     bitmap_final[i/32] = bitmap_final[i/32] | (1 << (i%32));
 
                     sig_ind++;
