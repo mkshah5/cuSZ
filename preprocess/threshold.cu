@@ -42,7 +42,7 @@ typedef union lfloat
  * 
  */
 int littleEndian = 0;
-__device__ unsigned long d_sigValues = 0;
+__device__ uint64_t d_sigValues = 0;
 
 /**
  * @brief CUDA kernels
@@ -388,7 +388,7 @@ int main(int argc, char* argv[]){
             bitmap_final = (uint32_t*)malloc(sizeof(uint32_t)*((dataLength/32)+1));
         }
         
-        unsigned long c = 0;
+        uint64_t c = 0;
 
         #ifdef TIMING
         cudaEventRecord(start, 0);
@@ -421,7 +421,7 @@ int main(int argc, char* argv[]){
             cudaDeviceSynchronize();
 
             // cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
-            cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(long));
+            cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(uint64_t));
 
             // cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
             double *d_finaldata;
