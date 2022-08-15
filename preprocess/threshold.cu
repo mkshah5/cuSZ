@@ -12,6 +12,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
+#include "cuCompactor.cuh"
 
 #define TIMING
 
@@ -41,7 +42,7 @@ typedef union lfloat
  * 
  */
 int littleEndian = 0;
-__device__ int d_sigValues = 0;
+__device__ unsigned long d_sigValues = 0;
 
 /**
  * @brief CUDA kernels
@@ -78,6 +79,33 @@ __global__ void apply_threshold(double *data, float threshold, unsigned long dat
         }   
     }
 }
+
+__global__ void gather_bitmap(char *in_bitmap, uint32_t *out_bitmap, unsigned long dataLength){
+
+    for(unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < (dataLength/32)+1; tid+=blockDim.x*gridDim.x){
+
+        for (size_t i = 0; i < 32; i++)
+        {
+            if (tid)
+            {
+                /* code */
+            }
+            
+        }
+        
+
+    }
+}
+
+// __global__ void prefix_gen(char *bitmap, int *pfix, unsigned long num_sig_values){
+    
+
+// }
+
+// __global__ void prefix_grouping(char *bitmap, int *pfix, unsigned long num_sig_values, double *data, double *out_data){
+
+
+// }
 
 struct is_nonzero
 {
@@ -283,6 +311,7 @@ int main(int argc, char* argv[]){
     int doGroup = 0;
     int castToFloat = 0;
     int useNVCOMP = 0;
+    int doAlternateCompaction = 0;
 
     float threshold = 0.0;
     unsigned long numSigValues = 0;
@@ -324,6 +353,9 @@ int main(int argc, char* argv[]){
         case 'N':
             useNVCOMP = 1;
             break;
+        case 'S':
+            doAlternateCompaction = 1;
+            break;
         default:
             break;
         }
@@ -356,7 +388,7 @@ int main(int argc, char* argv[]){
             bitmap_final = (uint32_t*)malloc(sizeof(uint32_t)*((dataLength/32)+1));
         }
         
-        int c = 0;
+        unsigned long c = 0;
 
         #ifdef TIMING
         cudaEventRecord(start, 0);
@@ -384,18 +416,27 @@ int main(int argc, char* argv[]){
             cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
 
         }else{
-            apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
+            // apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
+            weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
             cudaDeviceSynchronize();
 
-            cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
-            cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(int));
+            // cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
+            cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(long));
 
-            cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+            // cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
             double *d_finaldata;
 
             cudaMalloc(&d_finaldata, sizeof(double)*c);
 
-            thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+            if (doAlternateCompaction)
+            {
+                cuCompactor::compact<double>(d_data, d_finaldata, dataLength, is_nonzero(), 256);
+            }else{
+                thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+            }
+            
+
+            
 
             #ifdef TIMING
             cudaEventRecord(stop, 0);
