@@ -489,7 +489,7 @@ int main(int argc, char* argv[]){
 
                 nvcomp_manager.compress(device_input_ptrs, comp_buffer, comp_config);
 
-                printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, comp_config.comp_size);
+                printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
             }
             
 
