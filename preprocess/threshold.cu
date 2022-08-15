@@ -416,8 +416,8 @@ int main(int argc, char* argv[]){
             cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
 
         }else{
-            // apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
-            weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
+            apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
+            // weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
             cudaDeviceSynchronize();
 
             // cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
@@ -444,6 +444,8 @@ int main(int argc, char* argv[]){
             cudaEventElapsedTime(&time, start, stop);
             printf("Time to execute: %.3f ms\n", time);
             #endif
+
+            cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
 
             double *tmpData = (double *)malloc(c*sizeof(double));
 
