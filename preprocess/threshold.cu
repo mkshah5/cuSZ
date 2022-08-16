@@ -12,6 +12,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 #include "cuCompactor.cuh"
 
 #define TIMING
@@ -80,32 +81,61 @@ __global__ void apply_threshold(double *data, float threshold, unsigned long dat
     }
 }
 
-__global__ void gather_bitmap(char *in_bitmap, uint32_t *out_bitmap, unsigned long dataLength){
+// __global__ void gather_bitmap(char *in_bitmap, uint32_t *out_bitmap, unsigned long dataLength){
 
-    for(unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < (dataLength/32)+1; tid+=blockDim.x*gridDim.x){
+//     for(unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < (dataLength/32)+1; tid+=blockDim.x*gridDim.x){
 
-        for (size_t i = 0; i < 32; i++)
+//         for (size_t i = 0; i < 32; i++)
+//         {
+//             if (tid)
+//             {
+//                 /* code */
+//             }
+            
+//         }
+        
+
+//     }
+// }
+
+__global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
+    
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
+    {
+        pfix[tid] = __popc(bitmap[tid]);
+    }
+}
+
+__global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLength, uint64_t length, double *sig_values, double *reordered_data){
+
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
+    {
+        int pfix_ind = pfix[tid];
+
+        uint32_t bitmap_val = bitmap[tid];
+
+
+        for (int i = 0; i < 32; i++)
         {
-            if (tid)
+            if (tid*32+i >= length)
             {
-                /* code */
+                break;
+            }
+
+            if ((bitmap_val[tid] >> i) & 1 == 1)
+            {
+                reordered_data[tid*32+i] = sig_values[pfix_ind];
+                pfix_ind++;
+            }else{
+                reordered_data[tid*32+i] = 0.0;
             }
             
         }
         
-
     }
+
 }
 
-// __global__ void prefix_gen(char *bitmap, int *pfix, unsigned long num_sig_values){
-    
-
-// }
-
-// __global__ void prefix_grouping(char *bitmap, int *pfix, unsigned long num_sig_values, double *data, double *out_data){
-
-
-// }
 
 struct is_nonzero
 {
@@ -304,6 +334,7 @@ double *readDoubleData(char *srcFilePath, size_t *nbEle)
 
 int main(int argc, char* argv[]){
     char* inPath = NULL;
+    char* inPathDecomp = NULL;
     char outputFilePath[256];
     unsigned char *bytes = NULL;
 
@@ -329,6 +360,8 @@ int main(int argc, char* argv[]){
             break;
         case 'd':
             preCompression = 0;
+            i++;
+			inPathDecomp = argv[i];		
             break;
         case 'T':
             i++;
@@ -466,6 +499,9 @@ int main(int argc, char* argv[]){
                 
             }
 
+            char bitmapFilePath[256];
+            FILE *bitmapFile;
+            sprintf(bitmapFilePath, "%s.bitmap", inPath);	
             if (useNVCOMP)
             {
 
@@ -492,6 +528,14 @@ int main(int argc, char* argv[]){
                 nvcomp_manager.compress(device_input_ptrs, comp_buffer, comp_config);
 
                 printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
+
+                bitmapFile = fopen(bitmapFilePath, "wb");
+                fwrite(comp_buffer, sizeof(uint8_t), nvcomp_manager.get_compressed_output_size(comp_buffer), bitmapFile);
+                fclose(bitmapFile);
+            } else{
+                bitmapFile = fopen(bitmapFilePath, "wb");
+                fwrite(bitmap_final, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+                fclose(bitmapFile);
             }
             
 
@@ -533,6 +577,88 @@ int main(int argc, char* argv[]){
         printf("Number of significant values: %d\n", c);
         cudaFree(d_data);
         
+    } else {
+
+        uint64_t bitmapLength = ((dataLength/32)+1);
+        uint32_t *bitmap = (uint32_t *)malloc(sizeof(uint32_t)*bitmapLength);
+        uint32_t *d_bitmap;
+        cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
+
+        int *pfix;
+        cudaMalloc(&pfix, sizeof(int)*bitmapLength);
+        // int *pfix = (int *)malloc(sizeof(int)*bitmapLength);
+        
+        double *final_data = (double *)malloc(sizeof(double)*dataLength);
+        double *d_final_data;
+        cudaMalloc(&d_final_data, sizeof(double)*dataLength);
+
+        char bitmapFilePath[256];
+        FILE *bitmapFile;
+        sprintf(bitmapFilePath, "%s.bitmap", inPath);
+
+        bitmapFile = fopen(bitmapFilePath, "rb");
+
+        fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+
+        fclose(bitmapFile);
+
+
+        float *sig_values_f = (float *)malloc(sizeof(float)*numSigValues);
+        double *sig_values = (double *)malloc(sizeof(double)*numSigValues);
+        double *d_sig_values;
+        cudaMalloc(&d_sig_values, sizeof(double)*numSigValues);
+        
+        // Need to memcpy and do a float->double cast
+
+        FILE* sigFile;
+        sigFile = fopen(inPathDecomp, "rb");
+
+        fread(sig_values_f, sizeof(float), numSigValues, sigFile);
+
+        fclose(sigFile);
+
+        for (size_t i = 0; i < numSigValues; i++)
+        {
+            sig_values[i] = (double)sig_values_f[i];
+        }
+
+        free(sig_values_f);
+
+        cudaMemcpy(d_sig_values, sig_values, sizeof(double)*numSigValues, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
+
+        #ifdef TIMING
+        cudaEventRecord(start, 0);
+        #endif
+
+        prefix_gen<<<80,256>>>(d_bitmap, pfix, bitmapLength);
+        cudaDeviceSynchronize();
+
+        thrust::exclusive_scan(thrust::cuda::par, pfix, pfix+bitmapLength, pfix);
+
+        reorder_values<<<80,256>>>(pfix, d_bitmap, bitmapLength, dataLength, d_sig_values, d_final_data);
+        cudaDeviceSynchronize();
+
+
+
+        #ifdef TIMING
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&time, start, stop);
+        printf("Time to execute: %.3f ms\n", time);
+        #endif
+
+        cudaMemcpy(final_data, d_final_data, sizeof(double)*dataLength, cudaMemcpyDeviceToHost);
+
+        cudaFree(d_final_data);
+        cudaFree(d_sig_values);
+        cudaFree(d_bitmap);
+        cudaFree(pfix);
+        free(bitmap);
+        free(sig_values);
+
+        printf("final data [0]: %f\n", final_data[0]);
+        free(final_data);
     }
     
 
