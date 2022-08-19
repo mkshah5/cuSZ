@@ -106,7 +106,7 @@ __global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
     }
 }
 
-__global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLength, uint64_t length, double *sig_values, double *reordered_data){
+__global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLength, uint64_t length, double *sig_values, double *reordered_data, uint64_t numSigValues){
 
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
@@ -117,7 +117,7 @@ __global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLengt
 
         for (int i = 0; i < 32; i++)
         {
-            if (tid*32+i >= length)
+            if (tid*32+i >= length | pfix_ind >=numSigValues)
             {
                 break;
             }
@@ -636,7 +636,7 @@ int main(int argc, char* argv[]){
 
         thrust::exclusive_scan(thrust::cuda::par, pfix, pfix+bitmapLength, pfix);
 
-        reorder_values<<<80,256>>>(pfix, d_bitmap, bitmapLength, dataLength, d_sig_values, d_final_data);
+        reorder_values<<<80,256>>>(pfix, d_bitmap, bitmapLength, dataLength, d_sig_values, d_final_data, numSigValues);
         cudaDeviceSynchronize();
 
 
