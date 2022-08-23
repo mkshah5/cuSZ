@@ -657,6 +657,16 @@ int main(int argc, char* argv[]){
         free(bitmap);
         free(sig_values);
 
+        char finalOutPath[256];
+        FILE *finalFile;
+        sprintf(finalOutPath, "%s.out", inPath);
+
+        finalFile = fopen(finalOutPath, "rb");
+
+        fwrite(final_data, sizeof(double), dataLength, finalFile);
+
+        fclose(finalFile);
+
         printf("final data [0]: %f\n", final_data[0]);
         free(final_data);
     }
