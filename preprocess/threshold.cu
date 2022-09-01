@@ -673,9 +673,9 @@ int main(int argc, char* argv[]){
             
             nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
-            LZ4Manager nvcomp_manager{chunk_size, data_type, stream};
+            auto  decomp_manager = =create_manager(d_comp, stream);
 
-            DecompressionConfig decomp_config = nvcomp_manager.configure_decompression((uint8_t *)d_comp);
+            DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
             #ifdef TIMING
             float time_NVCOMP;
