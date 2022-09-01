@@ -673,7 +673,7 @@ int main(int argc, char* argv[]){
             
             nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
-            auto  decomp_manager = =create_manager(d_comp, stream);
+            auto  decomp_manager =create_manager(d_comp, stream);
 
             DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
@@ -686,7 +686,7 @@ int main(int argc, char* argv[]){
             #ifdef TIMING
             cudaEventRecord(start_2, 0);
             #endif
-            nvcomp_manager.decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
+            decomp_manager->decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
             #ifdef TIMING
             cudaEventRecord(stop_2, 0);
             cudaEventSynchronize(stop_2);
