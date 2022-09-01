@@ -628,7 +628,7 @@ int main(int argc, char* argv[]){
             fread(bitmap, sizeof(uint8_t), size, bitmapFile);
             cudaMalloc(&d_comp, sizeof(uint8_t)*size);
             cudaMemcpy(d_comp, bitmap, sizeof(uint8_t)*size, cudaMemcpyHostToDevice);
-            cudaMalloc(&d_bitmap, sizeof(uint8_t)*size);
+            
         }else{
             fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
             cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
@@ -677,6 +677,9 @@ int main(int argc, char* argv[]){
 
             DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
+            cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
+            printf("here\n");
+
             #ifdef TIMING
             float time_NVCOMP;
             cudaEvent_t start_2, stop_2;
