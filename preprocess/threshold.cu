@@ -549,7 +549,7 @@ int main(int argc, char* argv[]){
                 printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
 
                 bitmapFile = fopen(bitmapFilePath, "wb");
-                fwrite(comp_buffer, sizeof(uint8_t), nvcomp_manager.get_compressed_output_size(comp_buffer), bitmapFile);
+                fwrite(comp_buffer, sizeof(uint8_t), comp_config.max_compressed_buffer_size, bitmapFile);
                 fclose(bitmapFile);
             } else{
                 bitmapFile = fopen(bitmapFilePath, "wb");
@@ -673,7 +673,7 @@ int main(int argc, char* argv[]){
             
             nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
-            auto  decomp_manager =create_manager(d_comp, stream);
+            auto decomp_manager =create_manager(d_comp, stream);
 
             DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
