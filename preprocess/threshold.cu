@@ -600,7 +600,7 @@ int main(int argc, char* argv[]){
 
         uint64_t bitmapLength = ((dataLength/32)+1);
         uint32_t *bitmap = (uint32_t *)malloc(sizeof(uint32_t)*bitmapLength);
-        uint32_t *d_comp;
+        uint8_t *d_comp;
         uint32_t *d_bitmap;
         cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
         
