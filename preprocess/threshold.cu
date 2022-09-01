@@ -600,8 +600,10 @@ int main(int argc, char* argv[]){
 
         uint64_t bitmapLength = ((dataLength/32)+1);
         uint32_t *bitmap = (uint32_t *)malloc(sizeof(uint32_t)*bitmapLength);
+        uint8_t *d_decomp;
         uint32_t *d_bitmap;
         cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
+        
 
         int *pfix;
         cudaMalloc(&pfix, sizeof(int)*bitmapLength);
@@ -657,6 +659,8 @@ int main(int argc, char* argv[]){
 
         cudaMemcpy(d_sig_values, sig_values, sizeof(double)*numSigValues, cudaMemcpyHostToDevice);
         if(useNVCOMP){
+            cudaMalloc(&d_decomp, sizeof(uint8_t)*((dataLength/8)+1));
+
             cudaStream_t stream;
             cudaStreamCreate(&stream);
 
@@ -678,13 +682,14 @@ int main(int argc, char* argv[]){
             #ifdef TIMING
             cudaEventRecord(start_2, 0);
             #endif
-            nvcomp_manager.decompress((uint8_t *)d_bitmap, bitmap, decomp_config);
+            nvcomp_manager.decompress(d_decomp, bitmap, decomp_config);
             #ifdef TIMING
             cudaEventRecord(stop_2, 0);
             cudaEventSynchronize(stop_2);
             cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
             printf("NVCOMP Time to execute: %.3f ms\n", time_NVCOMP);
             #endif
+            d_bitmap = (uint8_t *)d_decomp;
         }else{
             cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
         }
