@@ -602,7 +602,7 @@ int main(int argc, char* argv[]){
         uint32_t *bitmap = (uint32_t *)malloc(sizeof(uint32_t)*bitmapLength);
         uint8_t *d_comp;
         uint32_t *d_bitmap;
-        cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
+        
         
 
         int *pfix;
@@ -628,8 +628,10 @@ int main(int argc, char* argv[]){
             fread(bitmap, sizeof(uint8_t), size, bitmapFile);
             cudaMalloc(&d_comp, sizeof(uint8_t)*size);
             cudaMemcpy(d_comp, bitmap, sizeof(uint8_t)*size, cudaMemcpyHostToDevice);
+            cudaMalloc(&d_bitmap, sizeof(uint8_t)*size);
         }else{
             fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+            cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
         }
         
 
