@@ -553,8 +553,9 @@ int main(int argc, char* argv[]){
                 cudaMemcpy(h_comp_buffer, comp_buffer, nvcomp_manager.get_compressed_output_size(comp_buffer), cudaMemcpyDeviceToHost);
 
                 bitmapFile = fopen(bitmapFilePath, "wb");
-                fwrite(comp_buffer, sizeof(uint8_t), nvcomp_manager.get_compressed_output_size(comp_buffer), bitmapFile);
+                fwrite(h_comp_buffer, sizeof(uint8_t), nvcomp_manager.get_compressed_output_size(comp_buffer), bitmapFile);
                 fclose(bitmapFile);
+                free(h_comp_buffer);
             } else{
                 bitmapFile = fopen(bitmapFilePath, "wb");
                 fwrite(bitmap_final, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
