@@ -626,6 +626,7 @@ int main(int argc, char* argv[]){
             stat(bitmapFilePath, &st);
             size = st.st_size;
             fread(bitmap, sizeof(uint8_t), size, bitmapFile);
+            printf("size: %ld\n",size);
             cudaMalloc(&d_comp, sizeof(uint8_t)*size);
             cudaMemcpy(d_comp, bitmap, sizeof(uint8_t)*size, cudaMemcpyHostToDevice);
             
