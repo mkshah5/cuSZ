@@ -600,7 +600,7 @@ int main(int argc, char* argv[]){
 
         uint64_t bitmapLength = ((dataLength/32)+1);
         uint32_t *bitmap = (uint32_t *)malloc(sizeof(uint32_t)*bitmapLength);
-        // uint8_t *d_decomp;
+        uint32_t *d_comp;
         uint32_t *d_bitmap;
         cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
         
@@ -626,6 +626,8 @@ int main(int argc, char* argv[]){
             stat(bitmapFilePath, &st);
             size = st.st_size;
             fread(bitmap, sizeof(uint8_t), size, bitmapFile);
+            cudaMalloc(&d_comp, sizeof(uint8_t)*size);
+            cudaMemcpy(d_comp, bitmap, sizeof(uint8_t)*size, cudaMemcpyHostToDevice);
         }else{
             fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
         }
@@ -671,7 +673,7 @@ int main(int argc, char* argv[]){
 
             LZ4Manager nvcomp_manager{chunk_size, data_type, stream};
 
-            DecompressionConfig decomp_config = nvcomp_manager.configure_decompression((uint8_t *)bitmap);
+            DecompressionConfig decomp_config = nvcomp_manager.configure_decompression((uint8_t *)d_comp);
             
             #ifdef TIMING
             float time_NVCOMP;
@@ -682,7 +684,7 @@ int main(int argc, char* argv[]){
             #ifdef TIMING
             cudaEventRecord(start_2, 0);
             #endif
-            nvcomp_manager.decompress((uint8_t*)d_bitmap, (uint8_t*)bitmap, decomp_config);
+            nvcomp_manager.decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
             #ifdef TIMING
             cudaEventRecord(stop_2, 0);
             cudaEventSynchronize(stop_2);
