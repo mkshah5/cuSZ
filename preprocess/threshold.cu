@@ -673,8 +673,9 @@ int main(int argc, char* argv[]){
             
             nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
+            printf("start\n");
             auto decomp_manager =create_manager(d_comp, stream);
-
+            printf("hee\n");
             DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
             cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
