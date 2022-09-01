@@ -682,7 +682,7 @@ int main(int argc, char* argv[]){
             #ifdef TIMING
             cudaEventRecord(start_2, 0);
             #endif
-            nvcomp_manager.decompress(d_decomp, bitmap, decomp_config);
+            nvcomp_manager.decompress(d_decomp, (uint8_t*)bitmap, decomp_config);
             #ifdef TIMING
             cudaEventRecord(stop_2, 0);
             cudaEventSynchronize(stop_2);
