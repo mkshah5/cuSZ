@@ -548,6 +548,10 @@ int main(int argc, char* argv[]){
 
                 printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
 
+                uint8_t *h_comp_buffer;
+                h_comp_buffer = (uint8_t *)malloc(nvcomp_manager.get_compressed_output_size(comp_buffer));
+                cudaMemcpy(h_comp_buffer, comp_buffer, nvcomp_manager.get_compressed_output_size(comp_buffer), cudaMemcpyDeviceToHost);
+
                 bitmapFile = fopen(bitmapFilePath, "wb");
                 fwrite(comp_buffer, sizeof(uint8_t), nvcomp_manager.get_compressed_output_size(comp_buffer), bitmapFile);
                 fclose(bitmapFile);
