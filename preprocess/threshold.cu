@@ -9,6 +9,8 @@
 #include "nvcomp/lz4.hpp"
 #include "nvcomp.hpp"
 #include "nvcomp/nvcompManagerFactory.hpp"
+#include <sys/stat.h>
+
 
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
@@ -505,6 +507,13 @@ int main(int argc, char* argv[]){
             if (useNVCOMP)
             {
 
+                #ifdef TIMING
+                float time_NVCOMP;
+                cudaEvent_t start_2, stop_2;
+                cudaEventCreate(&start_2);
+                cudaEventCreate(&stop_2);
+                #endif
+
                 size_t input_buffer_len = 4*((dataLength/32)+1);
                 uint8_t *device_input_ptrs;
 
@@ -525,7 +534,17 @@ int main(int argc, char* argv[]){
                 uint8_t* comp_buffer;
                 cudaMalloc(&comp_buffer, comp_config.max_compressed_buffer_size);
 
+                #ifdef TIMING
+                cudaEventRecord(start_2, 0);
+                #endif
                 nvcomp_manager.compress(device_input_ptrs, comp_buffer, comp_config);
+
+                #ifdef TIMING
+                cudaEventRecord(stop_2, 0);
+                cudaEventSynchronize(stop_2);
+                cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
+                printf("NVCOMP Time to execute: %.3f ms\n", time_NVCOMP);
+                #endif
 
                 printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
 
@@ -598,9 +617,21 @@ int main(int argc, char* argv[]){
 
         bitmapFile = fopen(bitmapFilePath, "rb");
 
-        fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+        if (useNVCOMP)
+        {
+            struct stat st;
+            size_t size;
+            stat(bitmapFilePath, &st);
+            size = st.st_size;
+            fread(bitmap, sizeof(uint8_t), size, bitmapFile);
+        }else{
+            fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+        }
+        
+
 
         fclose(bitmapFile);
+
 
 
         float *sig_values_f = (float *)malloc(sizeof(float)*numSigValues);
@@ -625,8 +656,38 @@ int main(int argc, char* argv[]){
         free(sig_values_f);
 
         cudaMemcpy(d_sig_values, sig_values, sizeof(double)*numSigValues, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
+        if(useNVCOMP){
+            cudaStream_t stream;
+            cudaStreamCreate(&stream);
 
+            const int chunk_size = 1 << 16;
+            
+            
+            nvcompType_t data_type = NVCOMP_TYPE_CHAR;
+
+            LZ4Manager nvcomp_manager{chunk_size, data_type, stream};
+
+            DecompressionConfig decomp_config = nvcomp_manager.configure_decompression((uint8_t *)bitmap);
+            
+            #ifdef TIMING
+            float time_NVCOMP;
+            cudaEvent_t start_2, stop_2;
+            cudaEventCreate(&start_2);
+            cudaEventCreate(&stop_2);
+            #endif
+            #ifdef TIMING
+            cudaEventRecord(start_2, 0);
+            #endif
+            nvcomp_manager.decompress((uint8_t *)d_bitmap, bitmap, decomp_config);
+            #ifdef TIMING
+            cudaEventRecord(stop_2, 0);
+            cudaEventSynchronize(stop_2);
+            cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
+            printf("NVCOMP Time to execute: %.3f ms\n", time_NVCOMP);
+            #endif
+        }else{
+            cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
+        }
         #ifdef TIMING
         cudaEventRecord(start, 0);
         #endif
