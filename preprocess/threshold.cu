@@ -150,14 +150,14 @@ struct is_nonzero
 
 struct cub_nonzero
 {
-    float compare;
+    // float compare;
 
-    CUB_RUNTIME_FUNCTION __forceinline__
-    cub_nonzero(float compare) : compare(compare) {}
+    // CUB_RUNTIME_FUNCTION __forceinline__
+    // cub_nonzero(float compare) : compare(compare) {}
 
     CUB_RUNTIME_FUNCTION __forceinline__
     bool operator()(const float &a) const {
-        return (a != compare);
+        return (a != 0.0);
     }
 };
 
@@ -366,7 +366,7 @@ int main(int argc, char* argv[]){
 
     size_t nbEle;
 
-    cub_nonzero select_op(0.0);
+    cub_nonzero select_op();
 
     checkEndian();
 
