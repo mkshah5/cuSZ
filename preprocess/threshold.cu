@@ -492,23 +492,23 @@ int main(int argc, char* argv[]){
             // cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
             float *d_finaldata;
 
-            // cudaMalloc(&d_finaldata, sizeof(double)*c);
-            cudaMalloc(&d_finaldata, sizeof(float)*dataLength);
+            cudaMalloc(&d_finaldata, sizeof(double)*c);
+            // cudaMalloc(&d_finaldata, sizeof(float)*dataLength);
 
             if (doAlternateCompaction)
             {
                 cuCompactor::compact<float>(d_data, d_finaldata, dataLength, is_nonzero(), 256);
             }else{
-                thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
-                // void *d_temp_storage = NULL;
-                // size_t temp_storage_bytes=  0;
-                // int *d_num_selected_out;
-                // cudaMalloc(&d_num_selected_out, sizeof(int));
+                // thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+                void *d_temp_storage = NULL;
+                size_t temp_storage_bytes=  0;
+                int *d_num_selected_out;
+                cudaMalloc(&d_num_selected_out, sizeof(int));
 
-                // cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
-                // cudaMalloc(&d_temp_storage, temp_storage_bytes);
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-                // cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
                 
             }
             
