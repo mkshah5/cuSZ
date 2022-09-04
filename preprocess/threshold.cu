@@ -16,6 +16,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include "cuCompactor.cuh"
+#include <cub/cub.cuh>
 
 #define TIMING
 
@@ -52,7 +53,7 @@ __device__ unsigned long long int d_sigValues = 0;
  * 
  */
 
-__global__ void weak_threshold(double *data, float threshold, unsigned long dataLength){
+__global__ void weak_threshold(float *data, float threshold, unsigned long dataLength){
     
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < dataLength; tid+=blockDim.x*gridDim.x)
     {
@@ -68,7 +69,7 @@ __global__ void weak_threshold(double *data, float threshold, unsigned long data
     
 }
 
-__global__ void apply_threshold(double *data, float threshold, unsigned long dataLength, char *bitmap){
+__global__ void apply_threshold(float *data, float threshold, unsigned long dataLength, char *bitmap){
     
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < dataLength; tid+=blockDim.x*gridDim.x)
     {
@@ -108,7 +109,7 @@ __global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
     }
 }
 
-__global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLength, uint64_t length, double *sig_values, double *reordered_data, uint64_t numSigValues){
+__global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLength, uint64_t length, float *sig_values, float *reordered_data, uint64_t numSigValues){
 
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
@@ -142,8 +143,21 @@ __global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLengt
 struct is_nonzero
 {
     __host__ __device__
-    bool operator()(const double x){
+    bool operator()(const float x){
         return x != 0.0;
+    }
+};
+
+struct cub_nonzero
+{
+    float compare;
+
+    CUB_RUNTIME_FUNCTION __forceinline__
+    cub_nonzero(float compare) : compare(compare) {}
+
+    CUB_RUNTIME_FUNCTION __forceinline__
+    bool operator()(const float &a) const {
+        return (a != compare);
     }
 };
 
@@ -352,6 +366,8 @@ int main(int argc, char* argv[]){
 
     size_t nbEle;
 
+    cub_nonzero select_op(0.0);
+
     checkEndian();
 
     for(int i=0;i<argc;i++){
@@ -406,15 +422,28 @@ int main(int argc, char* argv[]){
 
     if (preCompression)
     {
-        int dataToCopy = dataLength;
+        unsigned long dataToCopy = dataLength;
         char *h_bitmap, *d_bitmap;
 
         uint32_t *bitmap_final, *d_bitmap_final;
 
         double *data = readDoubleData(inPath, &nbEle);
-        double *d_data;
-        cudaMalloc(&d_data, sizeof(double)*dataLength);
-        cudaMemcpy(d_data, data, sizeof(double)*dataLength, cudaMemcpyHostToDevice);
+        float *d_data;
+        float *out_data;
+        cudaMalloc(&d_data, sizeof(float)*dataLength);
+        
+        float *floatTmpData = (float *)malloc(dataLength*sizeof(float));
+        for (size_t i = 0; i < dataLength; i++)
+        {
+            floatTmpData[i] = (float) data[i];
+        }
+        // writeFloatData_inBytes(floatTmpData, dataToCopy, outputFilePath);
+        cudaMemcpy(d_data, floatTmpData, sizeof(float)*dataLength, cudaMemcpyHostToDevice);
+        free(floatTmpData);
+
+        free(data);
+
+        
 
         if (doGroup)
         {
@@ -448,7 +477,9 @@ int main(int argc, char* argv[]){
             printf("Time to execute: %.3f ms\n", time);
             #endif
 
-            cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
+            out_data = (float *)malloc(sizeof(float)*dataToCopy);
+
+            cudaMemcpy(out_data, d_data, sizeof(float)*dataToCopy, cudaMemcpyDeviceToHost);
 
         }else{
             apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
@@ -459,15 +490,26 @@ int main(int argc, char* argv[]){
             cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(unsigned long long int));
 
             // cudaMemcpy(data, d_data, sizeof(double)*dataToCopy, cudaMemcpyDeviceToHost);
-            double *d_finaldata;
+            float *d_finaldata;
 
-            cudaMalloc(&d_finaldata, sizeof(double)*c);
+            // cudaMalloc(&d_finaldata, sizeof(double)*c);
+            cudaMalloc(&d_finaldata, sizeof(float)*dataLength);
 
             if (doAlternateCompaction)
             {
-                cuCompactor::compact<double>(d_data, d_finaldata, dataLength, is_nonzero(), 256);
+                cuCompactor::compact<float>(d_data, d_finaldata, dataLength, is_nonzero(), 256);
             }else{
-                thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+                //thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
+                void *d_temp_storage = NULL;
+                size_t temp_storage_bytes  0;
+                int *d_num_selected_out;
+                cudaMalloc(&d_num_selected_out, sizeof(int));
+
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                cudaMalloc(&d_temp_storage, temp_storage_bytes);
+
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                
             }
             
 
@@ -482,10 +524,10 @@ int main(int argc, char* argv[]){
 
             cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
 
-            double *tmpData = (double *)malloc(c*sizeof(double));
+            float *tmpData = (float *)malloc(c*sizeof(float));
 
-            cudaMemcpy(tmpData, d_finaldata, sizeof(double)*c,cudaMemcpyDeviceToHost);
-
+            cudaMemcpy(tmpData, d_finaldata, sizeof(float)*c,cudaMemcpyDeviceToHost);
+            cudaFree(d_finaldata);
             printf("tmpData from thrust: %f\n", tmpData[0]);
 
             int sig_ind = 0;
@@ -571,8 +613,8 @@ int main(int argc, char* argv[]){
             // #endif
 
 
-            free(data);
-            data = tmpData;
+            // free(data);
+            out_data = tmpData;
             dataToCopy = c;
         }
         
@@ -582,22 +624,22 @@ int main(int argc, char* argv[]){
 
         sprintf(outputFilePath, "%s.threshold", inPath);	
 
-        if (castToFloat)
-        {
-            float *floatTmpData = (float *)malloc(dataToCopy*sizeof(float));
-            for (size_t i = 0; i < dataToCopy; i++)
-            {
-                floatTmpData[i] = (float) data[i];
-            }
-            writeFloatData_inBytes(floatTmpData, dataToCopy, outputFilePath);
-            free(floatTmpData);
+        // if (castToFloat)
+        // {
+        //     float *floatTmpData = (float *)malloc(dataToCopy*sizeof(float));
+        //     for (size_t i = 0; i < dataToCopy; i++)
+        //     {
+        //         floatTmpData[i] = (float) data[i];
+        //     }
+        //     writeFloatData_inBytes(floatTmpData, dataToCopy, outputFilePath);
+        //     free(floatTmpData);
 
-        }else{
-            writeDoubleData_inBytes(data, dataToCopy, outputFilePath);
+        // }else{
+        //     writeDoubleData_inBytes(data, dataToCopy, outputFilePath);
            
-        }
-        
-        free(data);
+        // }
+        writeFloatData_inBytes(out_data, dataToCopy, outputFilePath);
+        free(out_data);
         printf("Number of significant values: %d\n", c);
         cudaFree(d_data);
         
@@ -615,8 +657,9 @@ int main(int argc, char* argv[]){
         // int *pfix = (int *)malloc(sizeof(int)*bitmapLength);
         
         double *final_data = (double *)malloc(sizeof(double)*dataLength);
-        double *d_final_data;
-        cudaMalloc(&d_final_data, sizeof(double)*dataLength);
+        float *final_data_f =(float *)malloc(sizeof(float)*dataLength);
+        float *d_final_data;
+        cudaMalloc(&d_final_data, sizeof(float)*dataLength);
 
         char bitmapFilePath[256];
         FILE *bitmapFile;
@@ -646,9 +689,9 @@ int main(int argc, char* argv[]){
 
 
         float *sig_values_f = (float *)malloc(sizeof(float)*numSigValues);
-        double *sig_values = (double *)malloc(sizeof(double)*numSigValues);
-        double *d_sig_values;
-        cudaMalloc(&d_sig_values, sizeof(double)*numSigValues);
+        // double *sig_values = (double *)malloc(sizeof(double)*numSigValues);
+        float *d_sig_values;
+        cudaMalloc(&d_sig_values, sizeof(float)*numSigValues);
         
         // Need to memcpy and do a float->double cast
 
@@ -659,14 +702,14 @@ int main(int argc, char* argv[]){
 
         fclose(sigFile);
 
-        for (size_t i = 0; i < numSigValues; i++)
-        {
-            sig_values[i] = (double)sig_values_f[i];
-        }
+        // for (size_t i = 0; i < numSigValues; i++)
+        // {
+        //     sig_values[i] = (double)sig_values_f[i];
+        // }
 
-        free(sig_values_f);
+        // free(sig_values_f);
 
-        cudaMemcpy(d_sig_values, sig_values, sizeof(double)*numSigValues, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_sig_values, sig_values_f, sizeof(float)*numSigValues, cudaMemcpyHostToDevice);
         if(useNVCOMP){
             // cudaMalloc(&d_decomp, sizeof(uint8_t)*((dataLength/8)+1));
 
@@ -726,14 +769,20 @@ int main(int argc, char* argv[]){
         printf("Time to execute: %.3f ms\n", time);
         #endif
 
-        cudaMemcpy(final_data, d_final_data, sizeof(double)*dataLength, cudaMemcpyDeviceToHost);
+        cudaMemcpy(final_data_f, d_final_data, sizeof(float)*dataLength, cudaMemcpyDeviceToHost);
+
+        for (size_t i = 0; i < dataLength; i++)
+        {
+            final_data[i] = (double) final_data_f[i];
+        }
+        
 
         cudaFree(d_final_data);
         cudaFree(d_sig_values);
         cudaFree(d_bitmap);
         cudaFree(pfix);
         free(bitmap);
-        free(sig_values);
+        free(sig_values_f);
 
         char finalOutPath[256];
         FILE *finalFile;
@@ -747,6 +796,7 @@ int main(int argc, char* argv[]){
 
         printf("final data [0]: %f\n", final_data[0]);
         free(final_data);
+        free(final_data_f);
     }
     
 
