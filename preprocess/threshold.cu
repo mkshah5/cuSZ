@@ -501,7 +501,7 @@ int main(int argc, char* argv[]){
             }else{
                 //thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
                 void *d_temp_storage = NULL;
-                size_t temp_storage_bytes  0;
+                size_t temp_storage_bytes=  0;
                 int *d_num_selected_out;
                 cudaMalloc(&d_num_selected_out, sizeof(int));
 
