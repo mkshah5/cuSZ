@@ -148,18 +148,18 @@ struct is_nonzero
     }
 };
 
-struct cub_nonzero
-{
-    // float compare;
+// struct cub_nonzero
+// {
+//     // float compare;
 
-    // CUB_RUNTIME_FUNCTION __forceinline__
-    // cub_nonzero(float compare) : compare(compare) {}
+//     // CUB_RUNTIME_FUNCTION __forceinline__
+//     // cub_nonzero(float compare) : compare(compare) {}
 
-    CUB_RUNTIME_FUNCTION __forceinline__
-    bool operator()(const float &a) const {
-        return (a != 0.0);
-    }
-};
+//     CUB_RUNTIME_FUNCTION __forceinline__
+//     bool operator()(const float &a) const {
+//         return (a != 0.0);
+//     }
+// };
 
 /**
  * @brief Helper functions for host
@@ -366,7 +366,7 @@ int main(int argc, char* argv[]){
 
     size_t nbEle;
 
-    cub_nonzero select_op();
+    // cub_nonzero select_op();
 
     checkEndian();
 
@@ -505,10 +505,10 @@ int main(int argc, char* argv[]){
                 int *d_num_selected_out;
                 cudaMalloc(&d_num_selected_out, sizeof(int));
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, is_nonzero());
                 cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, select_op);
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, is_nonzero());
                 
             }
             
