@@ -359,10 +359,12 @@ int main(int argc, char* argv[]){
     int castToFloat = 0;
     int useNVCOMP = 0;
     int doAlternateCompaction = 0;
+    int doR2R = 0;
 
     float threshold = 0.0;
     unsigned long numSigValues = 0;
     unsigned long dataLength = 0;
+    float r2r_value = 0.0;
 
     size_t nbEle;
 
@@ -407,6 +409,11 @@ int main(int argc, char* argv[]){
         case 'S':
             doAlternateCompaction = 1;
             break;
+        case 'R':
+            doR2R = 1;
+            i++;
+            r2r_value = atof(argv[i]);
+            break;
         default:
             break;
         }
@@ -433,10 +440,30 @@ int main(int argc, char* argv[]){
         cudaMalloc(&d_data, sizeof(float)*dataLength);
         
         float *floatTmpData = (float *)malloc(dataLength*sizeof(float));
+
+        float max_value = (float) data[0];
+        float min_value = (float) data[0];
+
         for (size_t i = 0; i < dataLength; i++)
         {
             floatTmpData[i] = (float) data[i];
+            
+            if (floatTmpData[i] > max_value)
+            {
+                max_value = floatTmpData[i];
+            }
+            if (floatTmpData[i] < min_value)
+            {
+                min_value = floatTmpData[i];
+            }
+            
         }
+
+        if (doR2R)
+        {
+            threshold = r2r_value * (max_value - min_value);
+        }
+        
         // writeFloatData_inBytes(floatTmpData, dataToCopy, outputFilePath);
         cudaMemcpy(d_data, floatTmpData, sizeof(float)*dataLength, cudaMemcpyHostToDevice);
         free(floatTmpData);
