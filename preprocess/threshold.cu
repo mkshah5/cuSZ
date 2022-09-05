@@ -419,12 +419,7 @@ int main(int argc, char* argv[]){
         }
     }
 
-    #ifdef TIMING
-    float time;
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    #endif
+    
 
 
     if (preCompression)
@@ -481,9 +476,7 @@ int main(int argc, char* argv[]){
         
         unsigned long long int c = 0;
 
-        #ifdef TIMING
-        cudaEventRecord(start, 0);
-        #endif
+        
 
         // IMPLEMENTING THRESHOLD+GROUP OPTIMIZATION
         // // STEP 1: Allocate space for bitmap
@@ -493,15 +486,29 @@ int main(int argc, char* argv[]){
 
         if (!doGroup)
         {
+            #ifdef TIMING
+            float time_weak;
+            cudaEvent_t start_weak, stop_weak;
+            cudaEventCreate(&start_weak);
+            cudaEventCreate(&stop_weak);
+            #endif
+
+            #ifdef TIMING
+            cudaEventRecord(start_weak, 0);
+            #endif
+
             weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
+            #ifdef TIMING
+            cudaEventRecord(stop_weak, 0);
+            #endif
             cudaDeviceSynchronize();
             dataToCopy = dataLength;
 
             #ifdef TIMING
-            cudaEventRecord(stop, 0);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&time, start, stop);
-            printf("Time to execute: %.3f ms\n", time);
+            // cudaEventRecord(stop_weak, 0);
+            cudaEventSynchronize(stop_weak);
+            cudaEventElapsedTime(&time_weak, start_weak, stop_weak);
+            printf("Time to execute: %.3f ms\n", time_weak);
             #endif
 
             out_data = (float *)malloc(sizeof(float)*dataToCopy);
@@ -509,10 +516,29 @@ int main(int argc, char* argv[]){
             cudaMemcpy(out_data, d_data, sizeof(float)*dataToCopy, cudaMemcpyDeviceToHost);
 
         }else{
+            #ifdef TIMING
+            float total;
+            float time_thresh;
+            cudaEvent_t start_thresh, stop_thresh;
+            cudaEventCreate(&start_thresh);
+            cudaEventCreate(&stop_thresh);
+            #endif
+
+            #ifdef TIMING
+            cudaEventRecord(start_thresh, 0);
+            #endif
             apply_threshold<<<80,256>>>(d_data, threshold, dataLength, d_bitmap);
+            #ifdef TIMING
+            cudaEventRecord(stop_thresh, 0);
+            #endif
             // weak_threshold<<<80,256>>>(d_data, threshold, dataLength);
             cudaDeviceSynchronize();
-
+            #ifdef TIMING
+            // cudaEventRecord(stop_weak, 0);
+            cudaEventSynchronize(stop_thresh);
+            cudaEventElapsedTime(&time_thresh, start_thresh, stop_thresh);
+            #endif
+            
             // cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
             cudaMemcpyFromSymbol(&c, d_sigValues, sizeof(unsigned long long int));
 
@@ -522,9 +548,21 @@ int main(int argc, char* argv[]){
             cudaMalloc(&d_finaldata, sizeof(double)*c);
             // cudaMalloc(&d_finaldata, sizeof(float)*dataLength);
 
+            #ifdef TIMING
+            float time_compact;
+            cudaEvent_t start_compact, stop_compact;
+            cudaEventCreate(&start_compact);
+            cudaEventCreate(&stop_compact);
+            #endif
             if (doAlternateCompaction)
             {
+                #ifdef TIMING
+                cudaEventRecord(start_compact, 0);
+                #endif
                 cuCompactor::compact<float>(d_data, d_finaldata, dataLength, is_nonzero(), 256);
+                #ifdef TIMING
+                cudaEventRecord(stop_compact, 0);
+                #endif
             }else{
                 // thrust::copy_if(thrust::cuda::par, d_data, d_data + dataLength, d_finaldata, is_nonzero());
                 void *d_temp_storage = NULL;
@@ -532,21 +570,27 @@ int main(int argc, char* argv[]){
                 int *d_num_selected_out;
                 cudaMalloc(&d_num_selected_out, sizeof(int));
 
+                #ifdef TIMING
+                cudaEventRecord(start_compact, 0);
+                #endif
                 cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, is_nonzero());
                 cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
                 cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_data, d_finaldata, d_num_selected_out, dataLength, is_nonzero());
-                
+                #ifdef TIMING
+                cudaEventRecord(stop_compact, 0);
+                #endif
             }
             
 
             
 
             #ifdef TIMING
-            cudaEventRecord(stop, 0);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&time, start, stop);
-            printf("Time to execute: %.3f ms\n", time);
+            // cudaEventRecord(stop_compact, 0);
+            cudaEventSynchronize(stop_compact);
+            cudaEventElapsedTime(&time_compact, start_compact, stop_compact);
+            total = time_compact + time_thresh;
+            printf("Time to execute: %.3f ms\n", total);
             #endif
 
             cudaMemcpy(h_bitmap, d_bitmap, sizeof(char)*dataLength, cudaMemcpyDeviceToHost);
@@ -753,7 +797,7 @@ int main(int argc, char* argv[]){
             DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
             cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
-            printf("here\n");
+            // printf("here\n");
 
             #ifdef TIMING
             float time_NVCOMP;
@@ -776,24 +820,53 @@ int main(int argc, char* argv[]){
             cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
         }
         #ifdef TIMING
-        cudaEventRecord(start, 0);
+        float time_pre, time_scan, time_reorder, total_2;
+        cudaEvent_t start_pre, stop_pre, start_scan, stop_scan, start_reorder, stop_reorder;
+        cudaEventCreate(&start_pre);
+        cudaEventCreate(&stop_pre);
+        #endif
+        #ifdef TIMING
+        cudaEventRecord(start_pre, 0);
         #endif
 
         prefix_gen<<<80,256>>>(d_bitmap, pfix, bitmapLength);
+        #ifdef TIMING
+        cudaEventRecord(stop_pre, 0);
+        #endif
         cudaDeviceSynchronize();
-
-        thrust::exclusive_scan(thrust::cuda::par, pfix, pfix+bitmapLength, pfix);
-
-        reorder_values<<<80,256>>>(pfix, d_bitmap, bitmapLength, dataLength, d_sig_values, d_final_data, numSigValues);
-        cudaDeviceSynchronize();
-
-
+        #ifdef TIMING
+        cudaEventSynchronize(stop_pre);
+        cudaEventElapsedTime(&time_pre, start_pre, stop_pre);
+        #endif
 
         #ifdef TIMING
-        cudaEventRecord(stop, 0);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&time, start, stop);
-        printf("Time to execute: %.3f ms\n", time);
+        cudaEventRecord(start_scan, 0);
+        #endif
+        thrust::exclusive_scan(thrust::cuda::par, pfix, pfix+bitmapLength, pfix);
+        #ifdef TIMING
+        cudaEventRecord(stop_scan, 0);
+        #endif
+        #ifdef TIMING
+        cudaEventSynchronize(stop_scan);
+        cudaEventElapsedTime(&time_scan, start_scan, stop_scan);
+        #endif
+        #ifdef TIMING
+        cudaEventRecord(start_reorder, 0);
+        #endif
+        reorder_values<<<80,256>>>(pfix, d_bitmap, bitmapLength, dataLength, d_sig_values, d_final_data, numSigValues);
+        #ifdef TIMING
+        cudaEventRecord(stop_reorder, 0);
+        #endif
+        cudaDeviceSynchronize();
+
+        #ifdef TIMING
+        cudaEventSynchronize(stop_reorder);
+        cudaEventElapsedTime(&time_reorder, start_reorder, stop_reorder);
+        #endif
+
+        #ifdef TIMING
+        total_2 = time_pre+time_scan+time_reorder;
+        printf("Time to execute: %.3f ms\n", total_2);
         #endif
 
         cudaMemcpy(final_data_f, d_final_data, sizeof(float)*dataLength, cudaMemcpyDeviceToHost);
