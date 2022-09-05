@@ -824,6 +824,10 @@ int main(int argc, char* argv[]){
         cudaEvent_t start_pre, stop_pre, start_scan, stop_scan, start_reorder, stop_reorder;
         cudaEventCreate(&start_pre);
         cudaEventCreate(&stop_pre);
+        cudaEventCreate(&start_scan);
+        cudaEventCreate(&stop_scan);
+        cudaEventCreate(&start_reorder);
+        cudaEventCreate(&stop_reorder);
         #endif
         #ifdef TIMING
         cudaEventRecord(start_pre, 0);
