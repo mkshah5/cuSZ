@@ -656,7 +656,7 @@ int main(int argc, char* argv[]){
                 cudaEventRecord(stop_2, 0);
                 cudaEventSynchronize(stop_2);
                 cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
-                printf("NVCOMP Time to execute: %.3f ms\n", time_NVCOMP);
+                printf("NVCOMP: %.3f ms\n", time_NVCOMP);
                 #endif
 
                 printf("max size %ld final size %ld\n", comp_config.max_compressed_buffer_size, nvcomp_manager.get_compressed_output_size(comp_buffer));
@@ -813,7 +813,7 @@ int main(int argc, char* argv[]){
             cudaEventRecord(stop_2, 0);
             cudaEventSynchronize(stop_2);
             cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
-            printf("NVCOMP Time to execute: %.3f ms\n", time_NVCOMP);
+            printf("NVCOMP: %.3f ms\n", time_NVCOMP);
             #endif
             // d_bitmap = (uint32_t *)d_decomp;
         }else{
