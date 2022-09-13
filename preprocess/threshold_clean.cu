@@ -174,6 +174,7 @@ __global__ void bitprefix_gen(uint8_t *bitmap, int *pfix, uint64_t bitmapLength)
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
         pfix[tid] = __popc(bitmap[tid]);
+
     }
 }
 
@@ -357,7 +358,7 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     bitprefix_gen<<<80,256>>>(d_map, d_pfix, map_size);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
-    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+(map_size), pfix);
+    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+map_size, pfix);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
     reorder_bits<<<80,256>>>(d_pfix, d_map, map_size, bitmapLength, d_value, (uint8_t *)d_bitmap, value_size);
