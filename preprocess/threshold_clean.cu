@@ -301,7 +301,6 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     int *d_pfix;
     uint8_t *value, *map;
     uint8_t *d_value, *d_map;
-    uint32_t *d_bitmap;
     size_t map_size = (dataLength/64)+1;
     size_t bitmapLength = sizeof(uint32_t)*((dataLength/32)+1);
 
@@ -936,38 +935,6 @@ int main(int argc, char* argv[]){
         if(useNVCOMP){
             // cudaMalloc(&d_decomp, sizeof(uint8_t)*((dataLength/8)+1));
             run_bitdecompress(dataLength, inPath, d_bitmap);
-            // cudaStream_t stream;
-            // cudaStreamCreate(&stream);
-
-            // const int chunk_size = 1 << 16;
-            
-            
-            // nvcompType_t data_type = NVCOMP_TYPE_CHAR;
-
-            // auto decomp_manager =create_manager(d_comp, stream);
-
-            // DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
-            
-            // cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
-            // // printf("here\n");
-
-            // #ifdef TIMING
-            // float time_NVCOMP;
-            // cudaEvent_t start_2, stop_2;
-            // cudaEventCreate(&start_2);
-            // cudaEventCreate(&stop_2);
-            // #endif
-            // #ifdef TIMING
-            // cudaEventRecord(start_2, 0);
-            // #endif
-            // decomp_manager->decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
-            // #ifdef TIMING
-            // cudaEventRecord(stop_2, 0);
-            // cudaEventSynchronize(stop_2);
-            // cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
-            // printf("NVCOMP: %.3f ms\n", time_NVCOMP);
-            // #endif
-            // d_bitmap = (uint32_t *)d_decomp;
         }else{
             cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
         }
