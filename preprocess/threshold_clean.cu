@@ -330,7 +330,8 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     cudaMalloc(&d_map, sizeof(uint8_t)*map_size);
     cudaMemcpy(d_map, map, sizeof(uint8_t)*map_size, cudaMemcpyHostToDevice);
 
-    cudaMalloc(&d_pfix, sizeof(int)*map_size);
+    cudaError_t res = cudaMalloc(&d_pfix, sizeof(int)*map_size);
+    printf("err: %d\n", res);
     cudaMalloc(&d_bitmap, bitmapLength);
 
     #ifdef TIMING
