@@ -182,6 +182,7 @@ __global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
     
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
+        printf("bitmap %d\n", bitmap[tid]);
         pfix[tid] = __popc(bitmap[tid]);
     }
 }
@@ -221,7 +222,6 @@ __global__ void reorder_bits(int *pfix, uint8_t *bitmap, uint64_t bitmapLength, 
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
         int pfix_ind = pfix[tid];
-        printf("pfix ind %d\n", pfix_ind);
         uint8_t bitmap_val = bitmap[tid];
 
         
