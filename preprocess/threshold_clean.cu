@@ -679,7 +679,7 @@ int main(int argc, char* argv[]){
                 dim3 gridDim(chunks,1,1);
                 uint8_t *d_bitmap_transfer;
 
-                cudaMalloc(&d_bitmap_transfer, (uint8_t*)malloc(sizeof(uint32_t)*((dataLength/32)+1)));
+                cudaMalloc(&d_bitmap_transfer, sizeof(uint32_t)*((dataLength/32)+1));
                 cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyDeviceToHost);
 
                 cudaMalloc(&d_finalbitmap_map, (dataLength/64)+1);
