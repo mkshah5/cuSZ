@@ -45,6 +45,15 @@ typedef union lfloat
  * @brief Globals
  * 
  */
+
+void CUDA_CHECK_ERR(cudaError_t err){
+    if (err != cudaSuccess)
+    {
+        printf("Error! Code: %d\n", err);
+        exit(0);
+    }
+    
+}
 int littleEndian = 0;
 __device__ unsigned long long int d_sigValues = 0;
 
@@ -325,15 +334,15 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     fread(map, sizeof(uint8_t), map_size, mapFile);
     fclose(mapFile);
 
-    cudaMalloc(&d_value, sizeof(uint8_t)*value_size);
-    cudaMemcpy(d_value, value, sizeof(uint8_t)*value_size, cudaMemcpyHostToDevice);
-    cudaMalloc(&d_map, sizeof(uint8_t)*map_size);
-    cudaMemcpy(d_map, map, sizeof(uint8_t)*map_size, cudaMemcpyHostToDevice);
+    CUDA_CHECK_ERR(cudaMalloc(&d_value, sizeof(uint8_t)*value_size));
+    CUDA_CHECK_ERR(cudaMemcpy(d_value, value, sizeof(uint8_t)*value_size, cudaMemcpyHostToDevice));
+    CUDA_CHECK_ERR(cudaMalloc(&d_map, sizeof(uint8_t)*map_size));
+    CUDA_CHECK_ERR(cudaMemcpy(d_map, map, sizeof(uint8_t)*map_size, cudaMemcpyHostToDevice));
 
-    cudaError_t res = cudaMalloc(&d_pfix, sizeof(int)*map_size);
-    printf("err: %d\n", res);
-    cudaMalloc(&d_bitmap, bitmapLength);
+    CUDA_CHECK_ERR(cudaMalloc(&d_pfix, sizeof(int)*map_size));
+    CUDA_CHECK_ERR(cudaMalloc(&d_bitmap, bitmapLength));
 
+    printf("Starting nvcomp\n");
     #ifdef TIMING
     float time_NVCOMP;
     cudaEvent_t start_2, stop_2;
@@ -346,10 +355,13 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
 
     bitprefix_gen<<<80,256>>>(d_map, d_pfix, map_size);
     cudaDeviceSynchronize();
+    CUDA_CHECK_ERR(cudaGetLastError());
     thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+(map_size), d_pfix);
     cudaDeviceSynchronize();
+    CUDA_CHECK_ERR(cudaGetLastError());
     reorder_bits<<<80,256>>>(d_pfix, d_map, map_size, bitmapLength, d_value, (uint8_t *)d_bitmap, value_size);
     cudaDeviceSynchronize();
+    CUDA_CHECK_ERR(cudaGetLastError());
     #ifdef TIMING
     cudaEventRecord(stop_2, 0);
     cudaEventSynchronize(stop_2);
