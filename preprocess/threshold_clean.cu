@@ -342,7 +342,7 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
 
     CUDA_CHECK_ERR(cudaMalloc(&d_pfix, sizeof(int)*map_size));
     CUDA_CHECK_ERR(cudaMalloc(&pfix, sizeof(int)*map_size));
-    CUDA_CHECK_ERR(cudaMalloc(&d_bitmap, bitmapLength));
+    
 
     printf("Starting nvcomp\n");
     #ifdef TIMING
@@ -912,7 +912,7 @@ int main(int argc, char* argv[]){
         float *d_final_data;
         cudaMalloc(&d_final_data, sizeof(float)*dataLength);
 
-        
+        CUDA_CHECK_ERR(cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength));
 
         if (!useNVCOMP){
             char bitmapFilePath[256];
@@ -921,7 +921,7 @@ int main(int argc, char* argv[]){
 
             bitmapFile = fopen(bitmapFilePath, "rb");
             fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
-            cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
+            // cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
             fclose(bitmapFile);
         }
 
