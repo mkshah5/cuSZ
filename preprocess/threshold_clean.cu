@@ -681,16 +681,15 @@ int main(int argc, char* argv[]){
                 uint32_t *d_bitmap_transfer;
 
                 cudaError_t ret = cudaMalloc(&d_bitmap_transfer, sizeof(uint32_t)*((dataLength/32)+1));
-                printf("%d\n", ret);
                 cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyHostToDevice);
 
                 cudaMalloc(&d_finalbitmap_map, (dataLength/64)+1);
-                cudaMalloc(&d_finalbitmap_dat, sizeof(char)*dataLength);
+                cudaMalloc(&d_finalbitmap_dat, (dataLength/32)+1);
 
-                void *d_temp_storage = NULL;
-                size_t temp_storage_bytes=  0;
-                int *d_num_selected_out;
-                cudaMalloc(&d_num_selected_out, sizeof(int));
+                void *d_storage = NULL;
+                size_t storage_bytes=  0;
+                int *d_num_out;
+                cudaMalloc(&d_num_out, sizeof(int));
 
                 #ifdef TIMING
                 float time_NVCOMP;
@@ -703,10 +702,10 @@ int main(int argc, char* argv[]){
                 cudaEventRecord(start_2, 0);
                 #endif
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
-                cudaMalloc(&d_temp_storage, temp_storage_bytes);
+                cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
+                cudaMalloc(&d_storage, storage_bytes);
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
+                cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
 
                 compress_bitmap<<<gridDim, NUM_THREADS>>>(d_bitmap,d_finalbitmap_map,dataLength);
                 #ifdef TIMING
@@ -722,7 +721,7 @@ int main(int argc, char* argv[]){
                 int num_out;
                 uint8_t *resultant_map, *resultant_values;
                 
-                cudaMemcpy(&num_out, &d_num_selected_out, sizeof(int), cudaMemcpyDeviceToHost);
+                cudaMemcpy(&num_out, &d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
                 resultant_map = (uint8_t *)malloc((dataLength/64)+1);
                 resultant_values = (uint8_t *)malloc(num_out);
                 cudaMemcpy(resultant_map, d_finalbitmap_map, (dataLength/64)+1, cudaMemcpyDeviceToHost);
