@@ -196,7 +196,7 @@ struct bitmap_nonzero
 {
     __host__ __device__
     bool operator()(const uint8_t x){
-        return x != (uint8_t) 0;
+        return x != (uint8_t)0;
     }
 };
 
@@ -677,6 +677,10 @@ int main(int argc, char* argv[]){
                 uint8_t *d_finalbitmap_map;
                 uint64_t chunks = dataLength/(NUM_THREADS*64);
                 dim3 gridDim(chunks,1,1);
+                uint8_t *d_bitmap_transfer;
+
+                cudaMalloc(&d_bitmap_transfer, (uint8_t*)malloc(sizeof(uint32_t)*((dataLength/32)+1)));
+                cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyDeviceToHost);
 
                 cudaMalloc(&d_finalbitmap_map, (dataLength/64)+1);
                 cudaMalloc(&d_finalbitmap_dat, sizeof(char)*dataLength);
@@ -697,10 +701,10 @@ int main(int argc, char* argv[]){
                 cudaEventRecord(start_2, 0);
                 #endif
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
                 cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
+                cub::DeviceSelect::If(d_temp_storage, temp_storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_selected_out, dataLength, bitmap_nonzero());
 
                 compress_bitmap<<<gridDim, NUM_THREADS>>>(d_bitmap,d_finalbitmap_map,dataLength);
                 #ifdef TIMING
