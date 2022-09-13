@@ -670,17 +670,18 @@ int main(int argc, char* argv[]){
             char bitmapMapPath[256];
             FILE *bitmapFile, *bitmapMap;
             sprintf(bitmapFilePath, "%s.bitmap", inPath);
-            sprintf(bitmapMapPath, "%s.map", inPath);	
+            sprintf(bitmapMapPath, "%s.map", inPath);
+            cudaFree(d_data);	
             if (useNVCOMP)
             {
                 uint8_t *d_finalbitmap_dat;
                 uint8_t *d_finalbitmap_map;
                 uint64_t chunks = dataLength/(NUM_THREADS*64);
                 dim3 gridDim(chunks,1,1);
-                uint8_t *d_bitmap_transfer;
+                uint32_t *d_bitmap_transfer;
 
                 cudaMalloc(&d_bitmap_transfer, sizeof(uint32_t)*((dataLength/32)+1));
-                cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyDeviceToHost);
+                cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyHostToDevice);
 
                 cudaMalloc(&d_finalbitmap_map, (dataLength/64)+1);
                 cudaMalloc(&d_finalbitmap_dat, sizeof(char)*dataLength);
@@ -778,7 +779,7 @@ int main(int argc, char* argv[]){
         writeFloatData_inBytes(out_data, dataToCopy, outputFilePath);
         free(out_data);
         printf("Number of significant values: %d\n", c);
-        cudaFree(d_data);
+        
         
     } else {
 
