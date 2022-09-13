@@ -678,7 +678,7 @@ int main(int argc, char* argv[]){
                 uint8_t *d_finalbitmap_map;
                 uint64_t chunks = dataLength/(NUM_THREADS*64);
                 dim3 gridDim(chunks,1,1);
-                uint32_t *d_bitmap_transfer;
+                uint8_t *d_bitmap_transfer;
 
                 cudaError_t ret = cudaMalloc(&d_bitmap_transfer, sizeof(uint32_t)*((dataLength/32)+1));
                 cudaMemcpy(d_bitmap_transfer, bitmap_final, sizeof(uint32_t)*((dataLength/32)+1), cudaMemcpyHostToDevice);
@@ -686,10 +686,10 @@ int main(int argc, char* argv[]){
                 cudaMalloc(&d_finalbitmap_map, (dataLength/64)+1);
                 cudaMalloc(&d_finalbitmap_dat, (dataLength/32)+1);
 
-                void *d_storage = NULL;
-                size_t storage_bytes=  0;
-                int *d_num_out;
-                cudaMalloc(&d_num_out, sizeof(int));
+                // void *d_storage = NULL;
+                // size_t storage_bytes=  0;
+                // int *d_num_out;
+                // cudaMalloc(&d_num_out, sizeof(int));
 
                 #ifdef TIMING
                 float time_NVCOMP;
@@ -701,11 +701,11 @@ int main(int argc, char* argv[]){
                 #ifdef TIMING
                 cudaEventRecord(start_2, 0);
                 #endif
+                uint8_t *result_copy = thrust::copy_if(thrust::cuda::par, d_bitmap_transfer, d_bitmap_transfer + (sizeof(uint32_t)*((dataLength/32)+1)), d_finalbitmap_dat, is_nonzero());
+                // cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
+                // cudaMalloc(&d_storage, storage_bytes);
 
-                cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
-                cudaMalloc(&d_storage, storage_bytes);
-
-                cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
+                // cub::DeviceSelect::If(d_storage, storage_bytes, d_bitmap_transfer, d_finalbitmap_dat, d_num_out, sizeof(uint32_t)*((dataLength/32)+1), bitmap_nonzero());
 
                 compress_bitmap<<<gridDim, NUM_THREADS>>>(d_bitmap,d_finalbitmap_map,dataLength);
                 #ifdef TIMING
@@ -718,10 +718,10 @@ int main(int argc, char* argv[]){
                 #ifdef TIMING
                 printf("NVCOMP: %.3f ms\n", time_NVCOMP);
                 #endif
-                int num_out;
+                int num_out = result_copy-d_finalbitmap_dat;
                 uint8_t *resultant_map, *resultant_values;
                 
-                cudaMemcpy(&num_out, &d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
+                // cudaMemcpy(&num_out, &d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
                 resultant_map = (uint8_t *)malloc((dataLength/64)+1);
                 resultant_values = (uint8_t *)malloc(num_out);
                 cudaMemcpy(resultant_map, d_finalbitmap_map, (dataLength/64)+1, cudaMemcpyDeviceToHost);
