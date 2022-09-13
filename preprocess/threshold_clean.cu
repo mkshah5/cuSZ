@@ -715,7 +715,10 @@ int main(int argc, char* argv[]){
                 #endif
                 int num_out;
                 uint8_t *resultant_map, *resultant_values;
-                cudaMemcpy(num_out, d_num_selected_out, sizeof(int), cudaMemcpyDeviceToHost);
+                
+                cudaMemcpy(&num_out, &d_num_selected_out, sizeof(int), cudaMemcpyDeviceToHost);
+                resultant_map = (uint8_t *)malloc((dataLength/64)+1);
+                resultant_values = (uint8_t *)malloc(num_out);
                 cudaMemcpy(resultant_map, d_finalbitmap_map, (dataLength/64)+1, cudaMemcpyDeviceToHost);
                 cudaMemcpy(resultant_values, d_finalbitmap_dat, num_out, cudaMemcpyDeviceToHost);
 
