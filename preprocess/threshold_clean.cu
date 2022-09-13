@@ -160,6 +160,14 @@ __global__ void compress_bitmap(char *bitmap, uint8_t *out_bitmap, uint64_t leng
     
 }
 
+__global__ void bitprefix_gen(uint8_t *bitmap, int *pfix, uint64_t bitmapLength){
+    
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
+    {
+        pfix[tid] = __popc(bitmap[tid]);
+    }
+}
+
 __global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
     
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
@@ -190,6 +198,36 @@ __global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLengt
                 pfix_ind++;
             }else{
                 reordered_data[tid*32+i] = 0.0;
+            }
+            
+        }
+        
+    }
+
+}
+
+__global__ void reorder_bits(int *pfix, uint8_t *bitmap, uint64_t bitmapLength, uint64_t length, uint8_t *sig_values, uint8_t *reordered_data, uint64_t numSigValues){
+
+    for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
+    {
+        int pfix_ind = pfix[tid];
+
+        uint8_t bitmap_val = bitmap[tid];
+
+
+        for (int i = 0; i < 8; i++)
+        {
+            if (tid*8+i >= length | pfix_ind >=numSigValues)
+            {
+                break;
+            }
+
+            if ((bitmap_val >> i) & 1 == 1)
+            {
+                reordered_data[tid*8+i] = sig_values[pfix_ind];
+                pfix_ind++;
+            }else{
+                reordered_data[tid*8+i] = 0;
             }
             
         }
@@ -258,7 +296,68 @@ void run_bitcompression(unsigned long dataLength, uint32_t *bitmap_final, char *
     free(resultant_map);
 }
 
+void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitmap){
 
+    int *d_pfix;
+    uint8_t *value, *map;
+    uint8_t *d_value, *d_map;
+    uint32_t *d_bitmap;
+    size_t map_size = (dataLength/64)+1;
+    size_t bitmapLength = sizeof(uint32_t)*((dataLength/32)+1);
+
+    char valueFilePath[256];
+    char mapFilePath[256];
+    FILE *valueFile, *mapFile;
+    sprintf(valueFilePath, "%s.bitmap", inPath);
+    sprintf(mapFilePath, "%s.map", inPath);
+
+    valueFile = fopen(valueFilePath, "rb");
+    mapFile = fopen(mapFilePath, "rb");
+
+    struct stat st;
+    size_t value_size;
+    stat(valueFilePath, &st);
+    value_size = st.st_size;
+    value = (uint8_t *)malloc(value_size);
+    map = (uint8_t *)malloc(map_size);
+
+    fread(value, sizeof(uint8_t), value_size, valueFile);
+    fclose(valueFile);
+    fread(map, sizeof(uint8_t), map_size, mapFile);
+    fclose(mapFile);
+
+    cudaMalloc(&d_value, sizeof(uint8_t)*value_size);
+    cudaMemcpy(d_value, value, sizeof(uint8_t)*value_size, cudaMemcpyHostToDevice);
+    cudaMalloc(&d_map, sizeof(uint8_t)*map_size);
+    cudaMemcpy(d_map, map, sizeof(uint8_t)*map_size, cudaMemcpyHostToDevice);
+
+    cudaMalloc(&d_pfix, sizeof(int)*map_size);
+    cudaMalloc(&d_bitmap, bitmapLength);
+
+    #ifdef TIMING
+    float time_NVCOMP;
+    cudaEvent_t start_2, stop_2;
+    cudaEventCreate(&start_2);
+    cudaEventCreate(&stop_2);
+    #endif
+    #ifdef TIMING
+    cudaEventRecord(start_2, 0);
+    #endif
+
+    bitprefix_gen<<<80,256>>>(d_map, d_pfix, map_size);
+    cudaDeviceSynchronize();
+    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+map_size, d_pfix);
+    cudaDeviceSynchronize();
+    reorder_bits<<<80,256>>>(d_pfix, d_map, map_size, bitmapLength, d_value, (uint8_t *)d_bitmap, value_size);
+    cudaDeviceSynchronize();
+    #ifdef TIMING
+    cudaEventRecord(stop_2, 0);
+    cudaEventSynchronize(stop_2);
+    cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
+    printf("NVCOMP: %.3f ms\n", time_NVCOMP);
+    #endif
+
+}
 
 
 // struct cub_nonzero
@@ -799,32 +898,18 @@ int main(int argc, char* argv[]){
         float *d_final_data;
         cudaMalloc(&d_final_data, sizeof(float)*dataLength);
 
-        char bitmapFilePath[256];
-        FILE *bitmapFile;
-        sprintf(bitmapFilePath, "%s.bitmap", inPath);
-
-        bitmapFile = fopen(bitmapFilePath, "rb");
-
-        if (useNVCOMP)
-        {
-            struct stat st;
-            size_t size;
-            stat(bitmapFilePath, &st);
-            size = st.st_size;
-            fread(bitmap, sizeof(uint8_t), size, bitmapFile);
-            cudaMalloc(&d_comp, sizeof(uint8_t)*size);
-            cudaMemcpy(d_comp, bitmap, sizeof(uint8_t)*size, cudaMemcpyHostToDevice);
-            
-        }else{
-            fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
-            cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
-        }
         
 
+        if (!useNVCOMP){
+            char bitmapFilePath[256];
+            FILE *bitmapFile;
+            sprintf(bitmapFilePath, "%s.bitmap", inPath);
 
-        fclose(bitmapFile);
-
-
+            bitmapFile = fopen(bitmapFilePath, "rb");
+            fread(bitmap, sizeof(uint32_t), ((dataLength/32)+1), bitmapFile);
+            cudaMalloc(&d_bitmap, sizeof(uint32_t)*bitmapLength);
+            fclose(bitmapFile);
+        }
 
         float *sig_values_f = (float *)malloc(sizeof(float)*numSigValues);
         // double *sig_values = (double *)malloc(sizeof(double)*numSigValues);
@@ -850,38 +935,38 @@ int main(int argc, char* argv[]){
         cudaMemcpy(d_sig_values, sig_values_f, sizeof(float)*numSigValues, cudaMemcpyHostToDevice);
         if(useNVCOMP){
             // cudaMalloc(&d_decomp, sizeof(uint8_t)*((dataLength/8)+1));
+            run_bitdecompress(dataLength, inPath, d_bitmap);
+            // cudaStream_t stream;
+            // cudaStreamCreate(&stream);
 
-            cudaStream_t stream;
-            cudaStreamCreate(&stream);
-
-            const int chunk_size = 1 << 16;
+            // const int chunk_size = 1 << 16;
             
             
-            nvcompType_t data_type = NVCOMP_TYPE_CHAR;
+            // nvcompType_t data_type = NVCOMP_TYPE_CHAR;
 
-            auto decomp_manager =create_manager(d_comp, stream);
+            // auto decomp_manager =create_manager(d_comp, stream);
 
-            DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
+            // DecompressionConfig decomp_config = decomp_manager->configure_decompression((uint8_t *)d_comp);
             
-            cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
-            // printf("here\n");
+            // cudaMalloc(&d_bitmap, decomp_config.decomp_data_size);
+            // // printf("here\n");
 
-            #ifdef TIMING
-            float time_NVCOMP;
-            cudaEvent_t start_2, stop_2;
-            cudaEventCreate(&start_2);
-            cudaEventCreate(&stop_2);
-            #endif
-            #ifdef TIMING
-            cudaEventRecord(start_2, 0);
-            #endif
-            decomp_manager->decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
-            #ifdef TIMING
-            cudaEventRecord(stop_2, 0);
-            cudaEventSynchronize(stop_2);
-            cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
-            printf("NVCOMP: %.3f ms\n", time_NVCOMP);
-            #endif
+            // #ifdef TIMING
+            // float time_NVCOMP;
+            // cudaEvent_t start_2, stop_2;
+            // cudaEventCreate(&start_2);
+            // cudaEventCreate(&stop_2);
+            // #endif
+            // #ifdef TIMING
+            // cudaEventRecord(start_2, 0);
+            // #endif
+            // decomp_manager->decompress((uint8_t*)d_bitmap, (uint8_t*)d_comp, decomp_config);
+            // #ifdef TIMING
+            // cudaEventRecord(stop_2, 0);
+            // cudaEventSynchronize(stop_2);
+            // cudaEventElapsedTime(&time_NVCOMP, start_2, stop_2);
+            // printf("NVCOMP: %.3f ms\n", time_NVCOMP);
+            // #endif
             // d_bitmap = (uint32_t *)d_decomp;
         }else{
             cudaMemcpy(d_bitmap, bitmap, sizeof(uint32_t)*bitmapLength, cudaMemcpyHostToDevice);
