@@ -358,7 +358,7 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     bitprefix_gen<<<80,256>>>(d_map, d_pfix, map_size);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
-    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+map_size, pfix);
+    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix[map_size], d_pfix);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
     reorder_bits<<<80,256>>>(d_pfix, d_map, map_size, bitmapLength, d_value, (uint8_t *)d_bitmap, value_size);
