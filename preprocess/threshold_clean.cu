@@ -307,7 +307,7 @@ void run_bitcompression(unsigned long dataLength, uint32_t *bitmap_final, char *
 
 void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitmap){
 
-    int *d_pfix;
+    int *d_pfix, *pfix;
     uint8_t *value, *map;
     uint8_t *d_value, *d_map;
     size_t map_size = (dataLength/64)+1;
@@ -340,6 +340,7 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     CUDA_CHECK_ERR(cudaMemcpy(d_map, map, sizeof(uint8_t)*map_size, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_ERR(cudaMalloc(&d_pfix, sizeof(int)*map_size));
+    CUDA_CHECK_ERR(cudaMalloc(&pfix, sizeof(int)*map_size));
     CUDA_CHECK_ERR(cudaMalloc(&d_bitmap, bitmapLength));
 
     printf("Starting nvcomp\n");
@@ -356,7 +357,7 @@ void run_bitdecompress(unsigned long dataLength, char* inPath, uint32_t *d_bitma
     bitprefix_gen<<<80,256>>>(d_map, d_pfix, map_size);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
-    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+(map_size), d_pfix);
+    thrust::exclusive_scan(thrust::cuda::par, d_pfix, d_pfix+(map_size), pfix);
     cudaDeviceSynchronize();
     CUDA_CHECK_ERR(cudaGetLastError());
     reorder_bits<<<80,256>>>(d_pfix, d_map, map_size, bitmapLength, d_value, (uint8_t *)d_bitmap, value_size);
