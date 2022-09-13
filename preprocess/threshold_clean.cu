@@ -981,6 +981,7 @@ int main(int argc, char* argv[]){
         cudaEventRecord(start_scan, 0);
         #endif
         thrust::exclusive_scan(thrust::cuda::par, pfix, pfix+bitmapLength, pfix);
+        CUDA_CHECK_ERR(cudaGetLastError());
         #ifdef TIMING
         cudaEventRecord(stop_scan, 0);
         #endif
