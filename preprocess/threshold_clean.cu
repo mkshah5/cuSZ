@@ -976,6 +976,7 @@ int main(int argc, char* argv[]){
         cudaEventSynchronize(stop_pre);
         cudaEventElapsedTime(&time_pre, start_pre, stop_pre);
         #endif
+        CUDA_CHECK_ERR(cudaGetLastError());
 
         #ifdef TIMING
         cudaEventRecord(start_scan, 0);
