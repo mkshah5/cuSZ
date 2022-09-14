@@ -892,7 +892,7 @@ int main(int argc, char* argv[]){
         FILE *finalFile;
         sprintf(finalOutPath, "%s.out", inPath);
 
-        finalFile = fopen(finalOutPath, "rb");
+        finalFile = fopen(finalOutPath, "wb");
 
         fwrite(final_data, sizeof(double), dataLength, finalFile);
 
