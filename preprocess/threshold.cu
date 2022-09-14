@@ -125,7 +125,7 @@ __global__ void reorder_values(int *pfix, uint32_t *bitmap, uint64_t bitmapLengt
                 break;
             }
 
-            if ((bitmap_val >> i) & 1 == 1)
+            if ((bitmap_val >> (31-i)) & 1 == 1)
             {
                 reordered_data[tid*32+i] = sig_values[pfix_ind];
                 pfix_ind++;
