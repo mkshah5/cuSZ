@@ -182,7 +182,6 @@ __global__ void prefix_gen(uint32_t *bitmap, int *pfix, uint64_t bitmapLength){
     
     for (unsigned long tid = threadIdx.x+blockDim.x*blockIdx.x; tid < bitmapLength; tid+=blockDim.x*gridDim.x)
     {
-        printf("bitmap %d\n", bitmap[tid]);
         pfix[tid] = __popc(bitmap[tid]);
     }
 }
