@@ -176,18 +176,25 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     uint32_t *bitmap_32 = (uint32_t *) bitmap;
     uint32_t *out_bitmap_32 = (uint32_t *) out_bitmap;
     uint64_t chunk_width = (NUM_THREADS*64*sizeof(uint32_t));
+    uint64_t chunk_width_32 = (NUM_THREADS*64);
     __shared__ uint32_t chunk_32[NUM_THREADS][(8*8)+1];
     // __shared__ char chunk[NUM_THREADS][((8*8*4)+1)]; //Pad shared memory to avoid bank conflicts. 8 chars = one bit in out_bitmap, 8 bits/byte => each thread handles 8 byte
     
     unsigned long chunk_start = blockIdx.x*(chunk_width);
     unsigned long chunk_end = (blockIdx.x+1)*(chunk_width);
-
+    unsigned long chunk_start_32 = blockIdx.x*(chunk_width_32);
+    unsigned long chunk_end_32 = blockIdx.x*(chunk_width_32);
 
     unsigned long bitmap_start_32 = blockIdx.x*(NUM_THREADS*4);
     if (chunk_end > length)
     {
         chunk_end = length;
     }
+    if (chunk_end_32 > (length/4)+1)
+    {
+        chunk_end_32 = (length/4)+1;
+    }
+    
 
     // uint64_t num_subchunks = (chunk_end-chunk_start)/8;    
 
@@ -195,6 +202,11 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     {
         for (size_t j = threadIdx.x; j < 64; j+=blockDim.x)
         {
+            if (chunk_start + (i*64+j) >= chunk_end_32)
+            {
+                break;
+            }
+            
             chunk_32[i][j] = bitmap_32[chunk_start + (i*64 +j)]; //chunk 32 will contain 64 * 4 data points -> 4 groups to be calculated
         }
     }
