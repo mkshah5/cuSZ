@@ -202,12 +202,12 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     {
         for (size_t j = threadIdx.x; j < 64; j+=blockDim.x)
         {
-            if (chunk_start + (i*64+j) >= chunk_end_32)
+            if (chunk_start_32 + (i*64+j) >= chunk_end_32)
             {
                 break;
             }
             
-            chunk_32[i][j] = bitmap_32[chunk_start + (i*64 +j)]; //chunk 32 will contain 64 * 4 data points -> 4 groups to be calculated
+            chunk_32[i][j] = bitmap_32[chunk_start_32 + (i*64 +j)]; //chunk 32 will contain 64 * 4 data points -> 4 groups to be calculated
         }
     }
     __syncthreads();
