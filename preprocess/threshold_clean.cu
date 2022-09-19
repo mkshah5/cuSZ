@@ -224,7 +224,7 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
                 ones+=(int)('1'==chunk[(out_idx*64+ group*8 + bit)]);
             }
             int result = (int)(ones > 0);
-            out_val[out_idx] |= result << group;
+            out_val[out_idx] = out_val[out_idx] | (result << group);
         }
     }
     uint32_t final_result = out_val[0] + (out_val[1] << 8) + (out_val[2] <<16) + (out_val[3] << 24);
