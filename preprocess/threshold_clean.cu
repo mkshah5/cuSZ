@@ -196,7 +196,7 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     }
     if (chunk_start_32 >= chunk_end_32)
     {
-        return
+        return;
     }
         
 
