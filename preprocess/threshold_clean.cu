@@ -200,7 +200,7 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     }
     __syncthreads();
 
-    uint8_t* chunk = chunk_32[threadIdx.x]; //pointer to first data point of thread's row
+    uint8_t* chunk = (uint8_t *)(&chunk_32[threadIdx.x]); //pointer to first data point of thread's row
     uint8_t out_val[4];
 
     for(size_t out_idx = 0; out_idx < 4; out_idx++){
