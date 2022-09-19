@@ -183,9 +183,9 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     unsigned long chunk_start = blockIdx.x*(chunk_width);
     unsigned long chunk_end = (blockIdx.x+1)*(chunk_width);
     unsigned long chunk_start_32 = blockIdx.x*(chunk_width_32);
-    unsigned long chunk_end_32 = blockIdx.x*(chunk_width_32);
+    unsigned long chunk_end_32 = (blockIdx.x+1)*(chunk_width_32);
 
-    unsigned long bitmap_start_32 = blockIdx.x*(NUM_THREADS*4);
+    unsigned long bitmap_start_32 = blockIdx.x*(NUM_THREADS);
     if (chunk_end > length)
     {
         chunk_end = length;
@@ -193,7 +193,12 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     if (chunk_end_32 > (length/4)+1)
     {
         chunk_end_32 = (length/4)+1;
-    }    
+    }
+    if (chunk_start_32 >= chunk_end_32)
+    {
+        return
+    }
+        
 
     // uint64_t num_subchunks = (chunk_end-chunk_start)/8;    
 
