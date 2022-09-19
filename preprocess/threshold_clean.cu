@@ -193,8 +193,7 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     if (chunk_end_32 > (length/4)+1)
     {
         chunk_end_32 = (length/4)+1;
-    }
-    
+    }    
 
     // uint64_t num_subchunks = (chunk_end-chunk_start)/8;    
 
@@ -216,6 +215,7 @@ __global__ void compress_bitmap_uint32(char *bitmap, uint8_t *out_bitmap, uint64
     uint8_t out_val[4];
 
     for(size_t out_idx = 0; out_idx < 4; out_idx++){
+        out_val[out_idx] = 0;
         for (size_t group = 0; group < 8; group++)
         {
             int ones = 0;
