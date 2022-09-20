@@ -221,7 +221,7 @@ void kernel_wrapper::get_frequency(
     printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropy_use);
 
     char entropy_file[100];
-    sprintf(entropy_file, "cauchy_hists/hist_entropy_%0.3f.data", entropy_use);
+    sprintf(entropy_file, "laplace_hists/hist_entropy_%0.3f.data", entropy_use);
 
     FILE *q_file = fopen(entropy_file,"rb");
     fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
