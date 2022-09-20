@@ -188,12 +188,12 @@ void kernel_wrapper::get_frequency(
     h_freq = (uint32_t*)malloc(sizeof(uint32_t)*num_buckets);
     cudaMemcpy(h_freq, out_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyDeviceToHost);
 
-    char entropy_file[100];
-    sprintf(entropy_file, "hist.data");
+    // char entropy_file[100];
+    // sprintf(entropy_file, "hist.data");
 
-    FILE *q_file = fopen(entropy_file,"wb");
-    fwrite((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
-    fclose(q_file);
+    // FILE *q_file = fopen(entropy_file,"wb");
+    // fwrite((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
+    // fclose(q_file);
 
     int total = 0;
     for (size_t i = 0; i < num_buckets; i++)
