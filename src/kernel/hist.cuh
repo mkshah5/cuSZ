@@ -218,60 +218,16 @@ void kernel_wrapper::get_frequency(
     }
     entropy = entropy*-1;
 
-    // float entropies[30] = {1.016,
-    //     1.082,
-    //     1.142,
-    //     1.198,
-    //     1.25,
-    //     1.299,
-    //     1.345,
-    //     1.389,
-    //     1.43,
-    //     1.47,
-    //     1.509,
-    //     1.546,
-    //     1.582,
-    //     1.617,
-    //     1.652,
-    //     1.685,
-    //     1.717,
-    //     1.749,
-    //     1.78,
-    //     1.811,
-    //     1.84,
-    //     1.869,
-    //     1.898,
-    //     1.926,
-    //     1.954,
-    //     1.981,
-    //     2.007,
-    //     2.033,
-    //     2.059,
-    //     2.084
-    // };
-    
-    // float min_diff = 100000;
-    // int min_idx = 0;
+    printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropy_use);
 
-    // for (int i = 0; i < 10; i++)
-    // {
-    //     if (abs(entropy - entropies[i]) < min_diff)
-    //     {
-    //         min_diff = abs(entropy - entropies[i]);
-    //         min_idx = i;
-    //     }
-    // }
+    char entropy_file[100];
+    sprintf(entropy_file, "cauchy_hists/hist_entropy_%0.3f.data", entropy_use);
 
-    // printf("Entropy calculated: %f Entropy selected: %f\n", entropy, entropy_use);
+    FILE *q_file = fopen(entropy_file,"rb");
+    fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
+    fclose(q_file);
 
-    // char entropy_file[100];
-    // sprintf(entropy_file, "gaussian_hists/hist_entropy_%0.3f.data", entropy_use);
-
-    // FILE *q_file = fopen(entropy_file,"rb");
-    // fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
-    // fclose(q_file);
-
-    // cudaMemcpy(out_freq, h_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyHostToDevice);
+    cudaMemcpy(out_freq, h_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyHostToDevice);
     free(h_freq);
     
 }
