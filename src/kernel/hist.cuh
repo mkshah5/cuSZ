@@ -196,9 +196,13 @@ void kernel_wrapper::get_frequency(
     // fclose(q_file);
 
     int total = 0;
+    
+    uint32_t *old_hfreq;
+    old_hfreq = (uint32_t*)malloc(sizeof(uint32_t)*num_buckets);
     for (size_t i = 0; i < num_buckets; i++)
     {
         total+=h_freq[i];
+        old_hfreq[i]=h_freq[i];
     }
     
 
@@ -226,6 +230,29 @@ void kernel_wrapper::get_frequency(
     FILE *q_file = fopen(entropy_file,"rb");
     fread((void *)h_freq, sizeof(uint32_t), num_buckets, q_file);
     fclose(q_file);
+
+    float entropy_wrong = 0.0;
+    int new_total = 0;
+    for (size_t i = 0; i < num_buckets; i++)
+    {
+        new_total+=h_freq[i];
+    }
+
+    for (size_t i = 0; i < num_buckets; i++)
+    {
+        double p = (double)old_hfreq[i]/(double)total;
+        double q = (double)h_freq[i]/(double)new_total;
+        if (p == 0)
+        {
+            continue;
+        }
+        
+
+        entropy_wrong+= p*log2(q);
+    }
+    entropy_wrong = entropy_wrong*-1;
+
+    printf("Entropy wrong: %f\n", entropy_wrong);
 
     cudaMemcpy(out_freq, h_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyHostToDevice);
     free(h_freq);
