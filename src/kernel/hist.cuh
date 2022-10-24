@@ -135,7 +135,7 @@ __global__ void kernel::p2013Histogram(T* in_data, FREQ* out_freq, size_t N, int
 }
 
 template <typename FREQ>
-__global__ void getCrossEntropy(FREQ* quant_hist, float* precomputed_logqs, int num_bins, int p_total, float *cross_entropy){
+__global__ void kernel::getCrossEntropy(FREQ* quant_hist, float* precomputed_logqs, int num_bins, int p_total, float *cross_entropy){
     /* Be sure to allocate this on kernel launch*/
     extern __shared__ float entropy_components[];
 
