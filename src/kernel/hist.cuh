@@ -301,10 +301,13 @@ void kernel_wrapper::get_frequency(
     }
     
     float *d_logq_arr;
-    float *d_cross_entropy;
+    float *d_cross_entropy, *h_cross_entropy;
+
+    h_cross_entropy = (float *)malloc(sizeof(float)*NUM_TREES);
+
     cudaMalloc(&d_cross_entropy, sizeof(float)*NUM_TREES);
     cudaMalloc(&d_logq_arr, sizeof(float)*num_buckets*NUM_TREES);
-    cudaMemcpy(d_logq_arr, large_logq_arr, sizeof(float)*num_buckets*NUM_TREES);
+    cudaMemcpy(d_logq_arr, large_logq_arr, sizeof(float)*num_buckets*NUM_TREES, cudaMemcpyHostToDevice);
     /* END PREPROCESSING */
 
     cuda_timer_t t1;
@@ -315,6 +318,19 @@ void kernel_wrapper::get_frequency(
 
     float ms_CE = t1.get_time_elapsed();
     printf("CE execute time: %f\n", ms_CE);
+
+    cudaMemcpy(h_cross_entropy, d_cross_entropy, sizeof(float)*NUM_TREES, cudaMemcpyDeviceToHost);
+    float min = h_cross_entropy[0];
+    for (size_t i = 1; i < NUM_TREES; i++)
+    {
+        if (h_cross_entropy[i] < min)
+        {
+            min = h_cross_entropy[i];
+        }
+    }
+
+    printf("Minimum Cross Entropy: %f\n", min);
+    
     // cudaMemcpy(out_freq, h_freq, sizeof(uint32_t)*num_buckets, cudaMemcpyHostToDevice);
     free(h_freq);
     
