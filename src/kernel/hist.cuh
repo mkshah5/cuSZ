@@ -142,7 +142,7 @@ __global__ void getCrossEntropy(FREQ* quant_hist, float* precomputed_logqs, int 
     extern __shared__ float entropy_components[];
 
     int bin = threadIdx.x;
-    uint32_t* blk_logqs = &precomputed_logqs[blockIdx.x*num_bins];
+    float* blk_logqs = &precomputed_logqs[blockIdx.x*num_bins];
     
     for (size_t i = bin; i < num_bins; i+=blockDim.x)
     {
