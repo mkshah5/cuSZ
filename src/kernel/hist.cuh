@@ -282,11 +282,11 @@ void kernel_wrapper::get_frequency(
     /** Gaussian entropies **/
     // float entropy_vals[100] = {1.016,1.075,1.131,1.184,1.236,1.286,1.335,1.382,1.428,1.474,1.518,1.563,1.607,1.651,1.695,1.738,1.782,1.826,1.869,1.913,1.957,2.0,2.044,2.088,2.131,2.175,2.219,2.262,2.306,2.35,2.393,2.437,2.481,2.524,2.568,2.611,2.655,2.699,2.742,2.786,2.83,2.873,2.917,2.961,3.004,3.048,3.092,3.135,3.179,3.223,3.266,3.31,3.354,3.397,3.441,3.484,3.528,3.572,3.615,3.659,3.703,3.746,3.79,3.834,3.877,3.921,3.965,4.008,4.052,4.096,4.139,4.183,4.227,4.27,4.314,4.357,4.401,4.445,4.488,4.532,4.576,4.619,4.663,4.707,4.75,4.794,4.838,4.881,4.925,4.969,5.012,5.056,5.099,5.143,5.187,5.23,5.274,5.318,5.361,5.405};
 
-    FILE *hist_qfile = fopen("cauchy_hist.bin", "rb");
+    FILE *hist_qfile = fopen("../dictionary/cauchy_hist.bin", "rb");
     fread((void*)large_hist_arr, sizeof(uint32_t), num_buckets*NUM_TREES, hist_qfile);
     fclose(hist_qfile);
 
-    FILE *log_qfile = fopen("cauchy_logq.bin", "rb");
+    FILE *log_qfile = fopen("../dictionary/cauchy_logq.bin", "rb");
     fread((void*)large_logq_arr, sizeof(float), num_buckets*NUM_TREES, log_qfile);
     fclose(log_qfile);
         
