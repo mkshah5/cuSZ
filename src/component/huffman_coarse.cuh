@@ -384,7 +384,7 @@ class HuffmanCoarse : public cusz::VariableRate {
 
         time_book = t.get_time_elapsed();
 
-        generate_precreated_files(cfg_booklen);    
+        // generate_precreated_files(cfg_booklen);    
 
     }
 
