@@ -795,42 +795,42 @@ int main(int argc, char* argv[]){
 
     size_t nbEle;
 
-    // cub_nonzero select_op();
+
 
     checkEndian();
 
     for(int i=0;i<argc;i++){
         switch (argv[i][1])
         {
-        case 'z':
+        case 'z':                       // Compression flag
             preCompression = 1;
             break;
-        case 'd':
+        case 'd':                       // Decompression flag, next argument must be path of compressed file
             preCompression = 0;
             i++;
 			inPathDecomp = argv[i];		
             break;
-        case 'T':
+        case 'T':                       // Threshold flag, next arg must be absolute threshold
             i++;
             threshold = atof(argv[i]);
             break;
-        case 'i':
+        case 'i':                       // Original data file path
 			i++;
 			inPath = argv[i];		
 			break;
-        case 'g':
+        case 'g':                       // Do grouping flag
             doGroup = 1;
             i++;
             numSigValues = atoi(argv[i]);
             break;
-        case 'L':
+        case 'L':                       // Length of data
             i++;
             dataLength = atoi(argv[i]);
             break;
-        case 'F':
+        case 'F':                       // Cast data from double to float
             castToFloat = 1;
             break;
-        case 'N':
+        case 'N':                       // Use two level bitmap
             useNVCOMP = 1;
             break;
         case 'S':
